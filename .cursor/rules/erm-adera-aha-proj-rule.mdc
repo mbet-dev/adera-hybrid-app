@@ -148,7 +148,9 @@ When asked to enter "Planner Mode" or using the /plan command, deeply reflect up
 
 
 ---
+# Make sure you are always in the proper directory before trying to execute terminal commands.
 ```
+---
 
 Agent implementers should auto-load the rule and honor it for every cascade/handler run. fileciteturn0file0 fileciteturn0file1
 

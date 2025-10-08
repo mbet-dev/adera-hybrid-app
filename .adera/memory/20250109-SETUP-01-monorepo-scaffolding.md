@@ -1,0 +1,45 @@
+# Memory: Monorepo Scaffolding (SETUP-01)
+- Date: 2025-01-09 00:30 (EAT)
+- Branch: dev
+- Git SHA: 76c4caf
+- Scope: setup
+- Repro steps / objective:
+  - Initialize git repository with main and dev branches
+  - Create memory, changelogs, and docs directories
+  - Scaffold Turborepo monorepo structure with pnpm
+  - Create two Expo apps: adera-ptp and adera-shop
+  - Set up shared packages: ui, auth, payments, maps, utils, localization
+- Actions taken:
+  - Initialized git repo with proper user config (mbet-dev, mbet.digitalsolutions@gmail.com)
+  - Created .adera/memory/, .adera/changelogs/, docs/software-docs/ directories
+  - Set up GitHub remote (mbet-dev/adera-hybrid-app)
+  - Created monorepo structure:
+    - apps/adera-ptp (Expo app for logistics)
+    - apps/adera-shop (Expo app for e-commerce)
+    - packages/ui (shared UI components)
+    - packages/auth (Supabase auth integration)
+    - packages/payments (Telebirr, Chapa, ArifPay)
+    - packages/maps (OpenStreetMap integration)
+    - packages/utils (common utilities)
+    - packages/localization (i18n support)
+  - Created root package.json with pnpm workspaces
+  - Created turbo.json for build pipeline
+  - Created .npmrc with hoisting for React Native compatibility
+- Files changed (summary):
+  - .adera/memory/README.md, .adera/changelogs/README.md, docs/software-docs/README.md
+  - package.json, turbo.json, .npmrc
+  - apps/adera-ptp/ (Expo app structure)
+  - apps/adera-shop/ (Expo app structure)
+  - packages/*/ (shared package directories)
+- Tests & verification steps:
+  - Verified git repo is properly initialized
+  - Confirmed pnpm is available (v10.18.1)
+  - Created directory structure successfully
+  - Both Expo apps created with blank template
+- Next steps / open questions:
+  - Install dependencies with pnpm
+  - Configure Expo apps for shared packages
+  - Implement onboarding UI with Ethiopian color palette
+  - Set up Supabase auth integration
+  - Create initial memory entry for UI implementation
+- References: Adera-App-Context-expo.md, erm-adera-aha-vibe-init-prompt.md
