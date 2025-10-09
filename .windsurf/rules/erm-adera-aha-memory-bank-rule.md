@@ -1,8 +1,7 @@
 ---
-description: 
-auto_execution_mode: 3
+trigger: model_decision
+description: Once a milestone is reached or a new business rule or feature is introduced, amended its implementation from the established context or removed and/or a persistent issue is resolved, this rule is triggered.
 ---
-
 
 # Ermias's Memory Bank
 

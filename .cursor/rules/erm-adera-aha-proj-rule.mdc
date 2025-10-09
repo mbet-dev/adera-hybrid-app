@@ -148,7 +148,7 @@ When asked to enter "Planner Mode" or using the /plan command, deeply reflect up
 
 
 ---
-# Make sure you are always in the proper directory before trying to execute terminal commands.
+# Make sure you are always in the proper directory before trying to execute terminal commands. And when trying to execute multiple commands, do not concatenate them with && if you on windows OS, use ; instead or execute them one by one. 
 ```
 ---
 
