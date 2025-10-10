@@ -26,7 +26,7 @@ const TextInput = ({
           },
         }}
         outlineStyle={{
-          borderColor: error ? theme.colors.error : theme.colors.gray[300],
+          borderColor: error ? theme.colors.error : theme.colors.outline,
         }}
         style={styles.input}
         {...props}

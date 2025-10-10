@@ -1,3 +1,6 @@
+// Import compatibility layer first to fix React Native Paper issues
+import './src/CompatLayer';
+
 export { default as ThemeProvider, useTheme } from './src/ThemeProvider';
 export { default as Button } from './src/Button';
 export { default as OnboardingScreen } from './src/OnboardingScreen';

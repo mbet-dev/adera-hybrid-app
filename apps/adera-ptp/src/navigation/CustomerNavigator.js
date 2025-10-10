@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomNavigation } from '@adera/ui';
 
-// Import Customer screens
-import CustomerDashboard from '../screens/customer/CustomerDashboard';
-import CreateParcel from '../screens/customer/CreateParcel';
-import TrackParcel from '../screens/customer/TrackParcel';
-import ParcelHistory from '../screens/customer/ParcelHistory';
-import Profile from '../screens/customer/Profile';
+// Import Customer screens - using minimal versions for debugging
+import CustomerDashboard from '../screens/Customer/CustomerDashboard.minimal';
+import CreateParcel from '../screens/Customer/CreateParcel.minimal';
+import TrackParcel from '../screens/Customer/CreateParcel.minimal';
+import ParcelHistory from '../screens/Customer/CreateParcel.minimal';
+import Profile from '../screens/Customer/CreateParcel.minimal';
 
 const Stack = createNativeStackNavigator();
 

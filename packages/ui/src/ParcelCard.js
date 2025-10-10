@@ -5,115 +5,127 @@ import { useTheme } from './ThemeProvider';
 import Card from './Card';
 import StatusBadge from './StatusBadge';
 
-const ParcelCard = ({ 
-  parcel, 
-  onPress, 
-  onTrack,
-  style,
-  showActions = true 
-}) => {
-  const theme = useTheme();
+// A helper function to format date strings.
+// TODO: Move to a shared utils package if used elsewhere.
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  return new Date(dateString).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
+// Sub-component for displaying a location row (From/To)
+const LocationRow = ({ icon, label, value, iconColor }) => {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.locationRow}>
+      <Ionicons name={icon} size={16} color={iconColor} />
+      <View style={styles.locationInfo}>
+        <Text style={[styles.locationLabel, { color: colors.text.secondary }]}>
+          {label}
+        </Text>
+        <Text style={[styles.locationText, { color: colors.text.primary }]} numberOfLines={1}>
+          {value}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+// Sub-component for the divider between From and To
+const Divider = () => {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.dividerContainer}>
+      <View style={[styles.dividerLine, { backgroundColor: colors.outline }]} />
+      <Ionicons 
+        name="arrow-down" 
+        size={16} 
+        color={colors.onSurfaceVariant} 
+        style={[styles.dividerIcon, { backgroundColor: colors.surface }]} 
+      />
+    </View>
+  );
+};
+
+// Sub-component for action buttons (Track/Details)
+const ActionButton = ({ icon, label, onPress, color, borderColor }) => (
+  <TouchableOpacity
+    style={[styles.actionButton, { borderColor }]}
+    onPress={onPress}
+  >
+    <Ionicons name={icon} size={16} color={color} />
+    <Text style={[styles.actionText, { color }]}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const ParcelCard = ({ parcel, onPress, onTrack, style, showActions = true }) => {
+  const { colors } = useTheme();
+
+  if (!parcel) {
+    return null; // Render nothing if no parcel data is provided
+  }
+
+  const {
+    tracking_id,
+    status,
+    created_at,
+    pickup_location,
+    delivery_location,
+    recipient_name,
+  } = parcel;
 
   return (
-    <Card style={[styles.card, style]} onPress={onPress}>
+    <Card style={[styles.card, style]} onPress={() => onPress?.(parcel)}>
+      {/* Header Section */}
       <View style={styles.header}>
         <View style={styles.trackingInfo}>
-          <Text style={[styles.trackingId, { color: theme.colors.primary }]}>
-            #{parcel.tracking_id}
+          <Text style={[styles.trackingId, { color: colors.primary }]}>
+            #{tracking_id}
           </Text>
-          <StatusBadge status={parcel.status} size="small" />
+          <StatusBadge status={status} size="small" />
         </View>
-        <Text style={[styles.date, { color: theme.colors.text.secondary }]}>
-          {formatDate(parcel.created_at)}
+        <Text style={[styles.date, { color: colors.text.secondary }]}>
+          {formatDate(created_at)}
         </Text>
       </View>
 
+      {/* Content Section: From/To Locations */}
       <View style={styles.content}>
-        <View style={styles.locationRow}>
-          <Ionicons 
-            name="location-outline" 
-            size={16} 
-            color={theme.colors.primary} 
-          />
-          <View style={styles.locationInfo}>
-            <Text style={[styles.locationLabel, { color: theme.colors.text.secondary }]}>
-              From
-            </Text>
-            <Text style={[styles.locationText, { color: theme.colors.text.primary }]}>
-              {parcel.pickup_location?.name || 'Pickup Location'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.divider}>
-          <View style={[styles.dividerLine, { backgroundColor: theme.colors.gray[200] }]} />
-          <Ionicons 
-            name="arrow-down" 
-            size={16} 
-            color={theme.colors.gray[400]} 
-          />
-        </View>
-
-        <View style={styles.locationRow}>
-          <Ionicons 
-            name="flag-outline" 
-            size={16} 
-            color={theme.colors.secondary} 
-          />
-          <View style={styles.locationInfo}>
-            <Text style={[styles.locationLabel, { color: theme.colors.text.secondary }]}>
-              To
-            </Text>
-            <Text style={[styles.locationText, { color: theme.colors.text.primary }]}>
-              {parcel.delivery_location?.name || parcel.recipient_name}
-            </Text>
-          </View>
-        </View>
+        <LocationRow
+          icon="location-outline"
+          label="From"
+          value={pickup_location?.name || 'Pickup Location'}
+          iconColor={colors.primary}
+        />
+        <Divider />
+        <LocationRow
+          icon="flag-outline"
+          label="To"
+          value={delivery_location?.name || recipient_name}
+          iconColor={colors.secondary}
+        />
       </View>
 
+      {/* Action Buttons Section */}
       {showActions && (
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={[
-              styles.actionButton,
-              { borderColor: theme.colors.primary }
-            ]}
+        <View style={[styles.actions, { borderTopColor: colors.outline }]}>
+          <ActionButton
+            icon="location"
+            label="Track"
             onPress={() => onTrack?.(parcel)}
-          >
-            <Ionicons 
-              name="location" 
-              size={16} 
-              color={theme.colors.primary} 
-            />
-            <Text style={[styles.actionText, { color: theme.colors.primary }]}>
-              Track
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[
-              styles.actionButton,
-              { borderColor: theme.colors.gray[300] }
-            ]}
+            color={colors.primary}
+            borderColor={colors.primary}
+          />
+          <ActionButton
+            icon="information-circle-outline"
+            label="Details"
             onPress={() => onPress?.(parcel)}
-          >
-            <Ionicons 
-              name="information-circle-outline" 
-              size={16} 
-              color={theme.colors.text.secondary} 
-            />
-            <Text style={[styles.actionText, { color: theme.colors.text.secondary }]}>
-              Details
-            </Text>
-          </TouchableOpacity>
+            color={colors.text.secondary}
+            borderColor={colors.outline}
+          />
         </View>
       )}
     </Card>
@@ -148,7 +160,7 @@ const styles = StyleSheet.create({
   locationRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: 12,
   },
   locationInfo: {
     flex: 1,
@@ -161,21 +173,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  divider: {
-    alignItems: 'center',
-    marginVertical: 8,
-    position: 'relative',
+  dividerContainer: {
+    height: 24,
+    justifyContent: 'center',
+    marginLeft: 8, // Aligns with the icon center
   },
   dividerLine: {
     position: 'absolute',
-    left: 8,
-    top: 8,
-    bottom: 8,
+    left: 0,
+    top: -4,
+    bottom: -4,
     width: 1,
+  },
+  dividerIcon: {
+    position: 'absolute',
+    left: -8, // Center the icon on the line
   },
   actions: {
     flexDirection: 'row',
     gap: 12,
+    borderTopWidth: 1,
+    paddingTop: 16,
   },
   actionButton: {
     flex: 1,
@@ -183,10 +201,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 12,
     borderWidth: 1,
     borderRadius: 8,
-    gap: 4,
+    gap: 6,
   },
   actionText: {
     fontSize: 14,

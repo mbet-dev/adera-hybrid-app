@@ -1,61 +1,112 @@
-// Ethiopian-inspired color palette for Adera Hybrid App
-export const colors = {
-  // Primary Ethiopian colors
-  ethiopian: {
-    green: '#2E7D32',      // Dark green (primary)
-    gold: '#FFD700',       // Gold (accent)
-    red: '#D32F2F',        // Red (secondary)
-  },
-  
-  // Semantic colors
-  primary: '#2E7D32',      // Ethiopian green
-  secondary: '#FFD700',    // Ethiopian gold
-  accent: '#D32F2F',       // Ethiopian red
-  
-  // Neutral colors
+// Ethiopian-inspired Material 3 palette for Adera Hybrid App
+
+const sharedNeutrals = {
+  50: '#F4F6EE',
+  100: '#E9EEDC',
+  200: '#D5DFC2',
+  300: '#C4D1AB',
+  400: '#AEBF90',
+  500: '#96A678',
+  600: '#7C8D61',
+  700: '#65724C',
+  800: '#4C5736',
+  900: '#344026',
+};
+
+const shared = {
   white: '#FFFFFF',
   black: '#000000',
-  gray: {
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    200: '#EEEEEE',
-    300: '#E0E0E0',
-    400: '#BDBDBD',
-    500: '#9E9E9E',
-    600: '#757575',
-    700: '#616161',
-    800: '#424242',
-    900: '#212121',
-  },
-  
-  // Status colors
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336',
-  info: '#2196F3',
-  
-  // Background colors
-  background: {
-    light: '#FFFFFF',
-    dark: '#121212',
-    primary: '#2E7D32',
-    secondary: '#FFD700',
-  },
-  
-  // Text colors
-  text: {
-    primary: '#212121',
-    secondary: '#757575',
-    disabled: '#BDBDBD',
-    inverse: '#FFFFFF',
-  },
-  
-  // Surface colors
-  surface: {
-    light: '#FFFFFF',
-    dark: '#1E1E1E',
-    elevated: '#FFFFFF',
-  },
+  neutral: sharedNeutrals,
+  gray: sharedNeutrals,
+};
+
+export const lightColors = {
+  primary: '#2E7D32',
+  onPrimary: '#FFFFFF',
+  primaryContainer: '#A5D6A7',
+  onPrimaryContainer: '#00210E',
+  secondary: '#FFD700',
+  onSecondary: '#3F2F00',
+  secondaryContainer: '#FFF3AE',
+  onSecondaryContainer: '#241A00',
+  tertiary: '#C62828',
+  onTertiary: '#FFFFFF',
+  tertiaryContainer: '#FFCDD2',
+  onTertiaryContainer: '#410006',
+  background: '#F7FBF4',
+  onBackground: '#181D16',
+  surface: '#FFFFFF',
+  onSurface: '#181D16',
+  surfaceVariant: '#E0E4D6',
+  onSurfaceVariant: '#45483B',
+  surfaceContainerLow: '#F1F4EA',
+  surfaceContainer: '#EBEFE2',
+  surfaceContainerHigh: '#E3E7DA',
+  surfaceContainerHighest: '#DADFD1',
+  outline: '#75796C',
+  outlineVariant: '#C4C8B6',
+  shadow: 'rgba(0,0,0,0.2)',
+  scrim: 'rgba(0,0,0,0.4)',
+  inverseSurface: '#303428',
+  inverseOnSurface: '#EFF1E6',
+  inversePrimary: '#7FDB94',
+  success: '#388E3C',
+  onSuccess: '#FFFFFF',
+  warning: '#F9A825',
+  info: '#1E88E5',
+  error: '#B3261E',
+  onError: '#FFFFFF',
+  surfaceDisabled: 'rgba(24, 29, 22, 0.12)',
+  onSurfaceDisabled: 'rgba(24, 29, 22, 0.38)',
+  backdrop: 'rgba(29, 53, 37, 0.4)',
+  ...shared,
+};
+
+export const darkColors = {
+  primary: '#7FDB94',
+  onPrimary: '#003919',
+  primaryContainer: '#0B5228',
+  onPrimaryContainer: '#A5D6A7',
+  secondary: '#E0C45C',
+  onSecondary: '#3D2E00',
+  secondaryContainer: '#574500',
+  onSecondaryContainer: '#FFE082',
+  tertiary: '#FF8A80',
+  onTertiary: '#5C0009',
+  tertiaryContainer: '#7F0D19',
+  onTertiaryContainer: '#FFDADB',
+  background: '#10140E',
+  onBackground: '#E3E7DA',
+  surface: '#10140E',
+  onSurface: '#E3E7DA',
+  surfaceVariant: '#45483B',
+  onSurfaceVariant: '#C4C8B6',
+  surfaceContainerLow: '#1B2019',
+  surfaceContainer: '#1F241C',
+  surfaceContainerHigh: '#222820',
+  surfaceContainerHighest: '#262C23',
+  outline: '#8A8D7F',
+  outlineVariant: '#45483B',
+  shadow: 'rgba(0,0,0,0.4)',
+  scrim: 'rgba(0,0,0,0.6)',
+  inverseSurface: '#E3E7DA',
+  inverseOnSurface: '#10140E',
+  inversePrimary: '#2E7D32',
+  success: '#81C784',
+  onSuccess: '#003911',
+  warning: '#FFB300',
+  info: '#64B5F6',
+  error: '#F2B8B5',
+  onError: '#601410',
+  surfaceDisabled: 'rgba(227, 231, 218, 0.12)',
+  onSurfaceDisabled: 'rgba(227, 231, 218, 0.38)',
+  backdrop: 'rgba(14, 24, 12, 0.6)',
+  ...shared,
+};
+
+const colors = {
+  light: lightColors,
+  dark: darkColors,
 };
 
 export default colors;

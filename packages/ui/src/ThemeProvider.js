@@ -4,7 +4,6 @@ import colors from './colors';
 import typography from './typography';
 
 const ThemeContext = createContext();
-
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (!context) {
@@ -16,13 +15,19 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
-  
+  const palette = isDark ? colors.dark : colors.light;
+
   const theme = {
     colors: {
-      ...colors,
-      background: isDark ? colors.background.dark : colors.background.light,
-      surface: isDark ? colors.surface.dark : colors.surface.light,
-      text: isDark ? colors.text.inverse : colors.text.primary,
+      ...palette,
+      white: palette.white,
+      black: palette.black,
+      text: {
+        primary: palette.onSurface,
+        secondary: palette.onSurfaceVariant,
+        inverse: palette.inverseOnSurface,
+        muted: palette.onSurfaceVariant,
+      },
     },
     typography,
     isDark,

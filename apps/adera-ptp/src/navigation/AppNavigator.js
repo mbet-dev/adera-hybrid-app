@@ -4,8 +4,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '@adera/auth';
 import { LoadingScreen } from '@adera/ui';
 
-// Import screens based on user role
-import CustomerNavigator from './CustomerNavigator';
+// Import screens based on user role - using simple version for debugging
+import CustomerNavigator from './CustomerNavigator.simple';
 import PartnerNavigator from './PartnerNavigator';
 import DriverNavigator from './DriverNavigator';
 import StaffNavigator from './StaffNavigator';

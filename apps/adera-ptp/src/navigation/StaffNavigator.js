@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { BottomNavigation } from '@adera/ui';
 
 // Import Staff screens
-import StaffDashboard from '../screens/staff/StaffDashboard';
-import ParcelOversight from '../screens/staff/ParcelOversight';
-import Analytics from '../screens/staff/Analytics';
-import Support from '../screens/staff/Support';
-import StaffProfile from '../screens/staff/StaffProfile';
+import StaffDashboard from '../screens/Staff/StaffDashboard';
+import ParcelOversight from '../screens/Staff/ParcelOversight';
+import Analytics from '../screens/Staff/Analytics';
+import Support from '../screens/Staff/Support';
+import StaffProfile from '../screens/Staff/StaffProfile';
 
 const StaffNavigator = () => {
   const [index, setIndex] = useState(0);

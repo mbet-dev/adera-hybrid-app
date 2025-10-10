@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { BottomNavigation } from '@adera/ui';
 
 // Import Driver screens
-import DriverDashboard from '../screens/driver/DriverDashboard';
-import RouteMap from '../screens/driver/RouteMap';
-import TaskList from '../screens/driver/TaskList';
-import DriverEarnings from '../screens/driver/DriverEarnings';
-import DriverProfile from '../screens/driver/DriverProfile';
+import DriverDashboard from '../screens/Driver/DriverDashboard';
+import RouteMap from '../screens/Driver/RouteMap';
+import TaskList from '../screens/Driver/TaskList';
+import DriverEarnings from '../screens/Driver/DriverEarnings';
+import DriverProfile from '../screens/Driver/DriverProfile';
 
 const DriverNavigator = () => {
   const [index, setIndex] = useState(0);

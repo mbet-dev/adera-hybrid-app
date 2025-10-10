@@ -5,11 +5,10 @@ import {
   StyleSheet,
   Dimensions,
   Image,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Button from './Button';
 import { useTheme } from './ThemeProvider';
@@ -25,9 +24,8 @@ const GatewayScreen = ({ onLogin, onGuest, onAppSelect }) => {
   
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={[theme.colors.primary, theme.colors.secondary]}
-        style={styles.gradient}
+      <View 
+        style={[styles.gradient, { backgroundColor: theme.colors.primary }]}
       >
         <ScrollView
           style={styles.scrollView}
@@ -121,7 +119,7 @@ const GatewayScreen = ({ onLogin, onGuest, onAppSelect }) => {
             </View>
           </View>
         </ScrollView>
-      </LinearGradient>
+      </View>
     </SafeAreaView>
   );
 };

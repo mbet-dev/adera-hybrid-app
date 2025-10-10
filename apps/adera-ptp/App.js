@@ -5,11 +5,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider, OnboardingScreen, GatewayScreen, LoadingScreen } from '@adera/ui';
 import { AuthProvider, useAuth } from '@adera/auth';
 import AppNavigator from './src/navigation/AppNavigator';
+import GuestNavigator from './src/navigation/GuestNavigator';
 
 // Main App Component
 function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showGateway, setShowGateway] = useState(false);
+  const [guestMode, setGuestMode] = useState(false);
   const { isAuthenticated, isLoading, signIn } = useAuth();
 
   const handleOnboardingComplete = () => {
@@ -29,7 +31,12 @@ function AppContent() {
 
   const handleGuest = () => {
     setShowGateway(false);
-    // TODO: Implement guest mode for browsing partner locations
+    setGuestMode(true);
+  };
+
+  const handleBackToAuth = () => {
+    setGuestMode(false);
+    setShowGateway(true);
   };
 
   const handleAppSelect = async (appType) => {
@@ -69,6 +76,11 @@ function AppContent() {
         defaultApp="ptp" // Default to PTP selection
       />
     );
+  }
+
+  // Show guest mode for browsing
+  if (guestMode) {
+    return <GuestNavigator onBackToAuth={handleBackToAuth} />;
   }
 
   // Fallback

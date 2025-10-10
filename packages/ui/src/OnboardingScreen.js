@@ -1,101 +1,112 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Dimensions,
   ScrollView,
-  Image,
-  SafeAreaView,
+  Animated,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import { useTheme } from './ThemeProvider';
 
 const { width, height } = Dimensions.get('window');
 
+const slides = [
+  {
+    title: 'Welcome to Adera',
+    subtitle: 'Your all-in-one ecosystem for logistics and e-commerce in Addis Ababa',
+    description: "Connect, deliver, and shop seamlessly with Ethiopia's premier hybrid platform.",
+    image: '🏢',
+  },
+  {
+    title: 'Send & Track Parcels',
+    subtitle: 'Adera-PTP Logistics',
+    description: 'Create delivery orders, track parcels in real-time, and ensure secure handovers with QR codes.',
+    image: '📦',
+  },
+  {
+    title: 'Discover Local Shops',
+    subtitle: 'Adera-Shop Marketplace',
+    description: 'Browse partner stores, discover local products, and enjoy seamless shopping experiences.',
+    image: '🛍️',
+  },
+  {
+    title: 'Ready to Start?',
+    subtitle: 'Choose Your Journey',
+    description: 'Log in to access full features or continue as a guest to explore our platform.',
+    image: '🚀',
+  },
+];
+
 const OnboardingScreen = ({ onComplete }) => {
   const theme = useTheme();
   const [currentSlide, setCurrentSlide] = useState(0);
-  
-  const slides = [
-    {
-      title: 'Welcome to Adera',
-      subtitle: 'Your all-in-one ecosystem for logistics and e-commerce in Addis Ababa',
-      description: 'Connect, deliver, and shop seamlessly with Ethiopia\'s premier hybrid platform.',
-      image: '🏢', // Placeholder for market illustration
-    },
-    {
-      title: 'Send & Track Parcels',
-      subtitle: 'Adera-PTP Logistics',
-      description: 'Create delivery orders, track parcels in real-time, and ensure secure handovers with QR codes.',
-      image: '📦',
-    },
-    {
-      title: 'Discover Local Shops',
-      subtitle: 'Adera-Shop Marketplace',
-      description: 'Browse partner stores, discover local products, and enjoy seamless shopping experiences.',
-      image: '🛍️',
-    },
-    {
-      title: 'Ready to Start?',
-      subtitle: 'Choose Your Journey',
-      description: 'Log in to access full features or continue as a guest to explore our platform.',
-      image: '🚀',
-    },
-  ];
-  
+  const pagerRef = useRef(null);
+  const scrollX = useRef(new Animated.Value(0)).current;
+
+  const handleMomentumEnd = (event) => {
+    const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
+    setCurrentSlide(slideIndex);
+  };
+
   const handleNext = () => {
     if (currentSlide < slides.length - 1) {
-      setCurrentSlide(currentSlide + 1);
-    } else {
-      onComplete();
+      const nextIndex = currentSlide + 1;
+      pagerRef.current?.scrollTo({ x: width * nextIndex, animated: true });
+      setCurrentSlide(nextIndex);
+      return;
     }
-  };
-  
-  const handleSkip = () => {
     onComplete();
   };
-  
+
+  const handleSkip = () => onComplete();
+
   return (
-    <SafeAreaView style={styles.container}>
-      <LinearGradient
-        colors={[theme.colors.primary, theme.colors.secondary]}
-        style={styles.gradient}
-      >
-        <ScrollView
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.primary }]}> 
+      <View style={styles.wrapper}>
+        <Animated.ScrollView
+          ref={pagerRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={(event) => {
-            const slideIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-            setCurrentSlide(slideIndex);
-          }}
+          onMomentumScrollEnd={handleMomentumEnd}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+            { useNativeDriver: false }
+          )}
+          scrollEventThrottle={16}
           style={styles.scrollView}
         >
           {slides.map((slide, index) => (
-            <View key={index} style={styles.slide}>
-              <View style={styles.content}>
-                <View style={styles.imageContainer}>
-                  <Text style={styles.emoji}>{slide.image}</Text>
-                </View>
-                
-                <View style={styles.textContainer}>
-                  <Text style={[styles.title, { color: theme.colors.white }]}>
-                    {slide.title}
-                  </Text>
-                  <Text style={[styles.subtitle, { color: theme.colors.white }]}>
-                    {slide.subtitle}
-                  </Text>
-                  <Text style={[styles.description, { color: theme.colors.white }]}>
-                    {slide.description}
-                  </Text>
-                </View>
+            <View key={slide.title} style={styles.slide}>
+              <View
+                style={[
+                  styles.imageContainer,
+                  { backgroundColor: theme.colors.onPrimary + '1F' },
+                ]}
+              >
+                <Text style={[styles.emoji, { color: theme.colors.onPrimary }]}>
+                  {slide.image}
+                </Text>
+              </View>
+
+              <View style={styles.textContainer}>
+                <Text style={[styles.title, { color: theme.colors.onPrimary }]}>
+                  {slide.title}
+                </Text>
+                <Text style={[styles.subtitle, { color: theme.colors.onPrimary }]}>
+                  {slide.subtitle}
+                </Text>
+                <Text style={[styles.description, { color: theme.colors.onPrimary }]}>
+                  {slide.description}
+                </Text>
               </View>
             </View>
           ))}
-        </ScrollView>
-        
+        </Animated.ScrollView>
+
         <View style={styles.footer}>
           <View style={styles.pagination}>
             {slides.map((_, index) => (
@@ -104,31 +115,37 @@ const OnboardingScreen = ({ onComplete }) => {
                 style={[
                   styles.paginationDot,
                   {
-                    backgroundColor: index === currentSlide 
-                      ? theme.colors.white 
-                      : theme.colors.white + '40'
-                  }
+                    backgroundColor:
+                      index === currentSlide
+                        ? theme.colors.onPrimary
+                        : theme.colors.onPrimary + '33',
+                    transform: [
+                      {
+                        scale: index === currentSlide ? 1.2 : 1,
+                      },
+                    ],
+                  },
                 ]}
               />
             ))}
           </View>
-          
-          <View style={styles.buttonContainer}>
+
+          <View style={styles.buttonRow}>
             {currentSlide < slides.length - 1 ? (
               <>
                 <Button
                   title="Skip"
                   variant="ghost"
                   onPress={handleSkip}
-                  style={[styles.button, { borderColor: theme.colors.white }]}
-                  textStyle={{ color: theme.colors.white }}
+                  style={styles.button}
+                  textStyle={{ color: theme.colors.onPrimary }}
                 />
                 <Button
                   title="Next"
                   variant="outline"
                   onPress={handleNext}
-                  style={[styles.button, { borderColor: theme.colors.white }]}
-                  textStyle={{ color: theme.colors.white }}
+                  style={[styles.button, { borderColor: theme.colors.onPrimary }]}
+                  textStyle={{ color: theme.colors.onPrimary }}
                 />
               </>
             ) : (
@@ -136,13 +153,13 @@ const OnboardingScreen = ({ onComplete }) => {
                 title="Get Started"
                 variant="outline"
                 onPress={handleNext}
-                style={[styles.button, { borderColor: theme.colors.white }]}
-                textStyle={{ color: theme.colors.white }}
+                style={[styles.button, { borderColor: theme.colors.onPrimary }]}
+                textStyle={{ color: theme.colors.onPrimary }}
               />
             )}
           </View>
         </View>
-      </LinearGradient>
+      </View>
     </SafeAreaView>
   );
 };
@@ -151,11 +168,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  gradient: {
+  wrapper: {
     flex: 1,
   },
   scrollView: {
-    flex: 1,
+    flexGrow: 0,
   },
   slide: {
     width,
@@ -164,16 +181,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
   },
-  content: {
-    alignItems: 'center',
-    flex: 1,
-    justifyContent: 'center',
-  },
   imageContainer: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
@@ -212,12 +223,12 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     marginHorizontal: 4,
   },
-  buttonContainer: {
+  buttonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

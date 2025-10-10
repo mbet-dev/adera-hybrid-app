@@ -13,13 +13,13 @@ const StatusBadge = ({
 
   // Ethiopian parcel status mapping
   const statusConfig = {
-    0: { label: 'Created', color: theme.colors.gray[500] },
+    0: { label: 'Created', color: theme.colors.onSurfaceVariant },
     1: { label: 'At Drop-off', color: theme.colors.secondary },
-    2: { label: 'In Transit', color: '#FF9800' }, // Orange
-    3: { label: 'At Hub', color: '#9C27B0' }, // Purple
-    4: { label: 'Dispatched', color: '#2196F3' }, // Blue
+    2: { label: 'In Transit', color: theme.colors.warning }, 
+    3: { label: 'At Hub', color: theme.colors.tertiary }, 
+    4: { label: 'Dispatched', color: theme.colors.info }, 
     5: { label: 'At Pickup Point', color: theme.colors.primary },
-    6: { label: 'Delivered', color: '#4CAF50' }, // Green
+    6: { label: 'Delivered', color: theme.colors.success }, 
   };
 
   const config = statusConfig[status] || statusConfig[0];

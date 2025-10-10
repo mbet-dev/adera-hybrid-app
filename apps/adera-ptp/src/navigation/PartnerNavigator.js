@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { BottomNavigation } from '@adera/ui';
 
 // Import Partner screens
-import PartnerDashboard from '../screens/partner/PartnerDashboard';
-import ScanQR from '../screens/partner/ScanQR';
-import ParcelManagement from '../screens/partner/ParcelManagement';
-import Earnings from '../screens/partner/Earnings';
-import PartnerProfile from '../screens/partner/PartnerProfile';
+import PartnerDashboard from '../screens/Partner/PartnerDashboard';
+import ScanQR from '../screens/Partner/ScanQR';
+import ParcelManagement from '../screens/Partner/ParcelManagement';
+import Earnings from '../screens/Partner/Earnings';
+import PartnerProfile from '../screens/Partner/PartnerProfile';
 
 const PartnerNavigator = () => {
   const [index, setIndex] = useState(0);

@@ -2,32 +2,71 @@ import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useTheme } from './ThemeProvider';
 
-const Button = ({ 
-  title, 
-  onPress, 
-  variant = 'primary', 
-  size = 'md', 
-  disabled = false, 
+const Button = ({
+  title,
+  onPress,
+  variant = 'primary',
+  size = 'md',
+  disabled = false,
   loading = false,
   style,
   textStyle,
-  ...props 
+  ...props
 }) => {
   const theme = useTheme();
   
+  const sizeStyle = styles[size] || styles.md;
+  const sizeTextStyle = styles[`${size}Text`] || styles.mdText;
+
+  const variantConfig = {
+    primary: {
+      backgroundColor: theme.colors.primary,
+      borderColor: theme.colors.primary,
+      borderWidth: 0,
+      textColor: theme.colors.onPrimary,
+    },
+    secondary: {
+      backgroundColor: theme.colors.secondary,
+      borderColor: theme.colors.secondary,
+      borderWidth: 0,
+      textColor: theme.colors.onSecondary,
+    },
+    outline: {
+      backgroundColor: 'transparent',
+      borderColor: theme.colors.primary,
+      borderWidth: 2,
+      textColor: theme.colors.primary,
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+      borderColor: 'transparent',
+      borderWidth: 0,
+      textColor: theme.colors.primary,
+    },
+  };
+
+  const { backgroundColor, borderColor, borderWidth, textColor } =
+    variantConfig[variant] || variantConfig.primary;
+
   const buttonStyles = [
     styles.button,
-    styles[variant],
-    styles[size],
-    disabled && styles.disabled,
+    sizeStyle,
+    {
+      backgroundColor,
+      borderColor,
+      borderWidth,
+      opacity: disabled ? 0.6 : 1,
+    },
     style,
   ];
-  
+
   const textStyles = [
     styles.text,
-    styles[`${variant}Text`],
-    styles[`${size}Text`],
-    disabled && styles.disabledText,
+    sizeTextStyle,
+    {
+      color: textColor,
+      opacity: disabled ? 0.6 : 1,
+    },
     textStyle,
   ];
   
@@ -40,9 +79,9 @@ const Button = ({
       {...props}
     >
       {loading ? (
-        <ActivityIndicator 
-          color={variant === 'primary' ? theme.colors.white : theme.colors.primary} 
-          size="small" 
+        <ActivityIndicator
+          color={textColor}
+          size="small"
         />
       ) : (
         <Text style={textStyles}>{title}</Text>
@@ -60,21 +99,6 @@ const styles = StyleSheet.create({
   },
   
   // Variants
-  primary: {
-    backgroundColor: '#2E7D32', // Ethiopian green
-  },
-  secondary: {
-    backgroundColor: '#FFD700', // Ethiopian gold
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: '#2E7D32',
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  
   // Sizes
   sm: {
     paddingHorizontal: 16,
@@ -97,19 +121,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  primaryText: {
-    color: '#FFFFFF',
-  },
-  secondaryText: {
-    color: '#2E7D32',
-  },
-  outlineText: {
-    color: '#2E7D32',
-  },
-  ghostText: {
-    color: '#2E7D32',
-  },
-  
   // Size text
   smText: {
     fontSize: 14,
@@ -119,14 +130,6 @@ const styles = StyleSheet.create({
   },
   lgText: {
     fontSize: 18,
-  },
-  
-  // Disabled
-  disabled: {
-    opacity: 0.6,
-  },
-  disabledText: {
-    opacity: 0.6,
   },
 });
 
