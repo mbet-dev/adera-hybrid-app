@@ -15,17 +15,32 @@ import { useTheme } from './ThemeProvider';
 
 const { width, height } = Dimensions.get('window');
 
-const GatewayScreen = ({ onLogin, onGuest, onAppSelect }) => {
+const GatewayScreen = ({ onLogin, onGuest, selectedApp = null }) => {
   const theme = useTheme();
   
-  const handleAppSelect = (appType) => {
-    onAppSelect(appType);
+  const appConfig = {
+    ptp: {
+      name: 'Adera-PTP',
+      emoji: '📦',
+      title: 'Access Logistics Platform',
+      subtitle: 'Send parcels, track deliveries, and manage logistics with secure QR codes.',
+      color: theme.colors.primary,
+    },
+    shop: {
+      name: 'Adera-Shop',
+      emoji: '🛍️',
+      title: 'Enter Marketplace',
+      subtitle: 'Discover local products, support Ethiopian businesses, and shop seamlessly.',
+      color: theme.colors.secondary,
+    },
   };
+
+  const currentApp = selectedApp ? appConfig[selectedApp] : null;
   
   return (
     <SafeAreaView style={styles.container}>
       <View 
-        style={[styles.gradient, { backgroundColor: theme.colors.primary }]}
+        style={[styles.gradient, { backgroundColor: currentApp ? currentApp.color : theme.colors.primary }]}
       >
         <ScrollView
           style={styles.scrollView}
@@ -34,12 +49,22 @@ const GatewayScreen = ({ onLogin, onGuest, onAppSelect }) => {
         >
           {/* Header with Logo */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoEmoji}>🏺</Text>
+            <View style={[
+              styles.logoContainer,
+              currentApp && { backgroundColor: currentApp.color + '30' }
+            ]}>
+              <Text style={styles.logoEmoji}>
+                {currentApp ? currentApp.emoji : '🏺'}
+              </Text>
             </View>
             <Text style={[styles.appName, { color: theme.colors.white }]}>
-              Adera
+              {currentApp ? currentApp.name : 'Adera'}
             </Text>
+            {currentApp && (
+              <Text style={[styles.appSubtext, { color: theme.colors.white + '80' }]}>
+                {currentApp.title}
+              </Text>
+            )}
           </View>
           
           {/* Market Illustration */}
@@ -51,10 +76,10 @@ const GatewayScreen = ({ onLogin, onGuest, onAppSelect }) => {
           {/* Main Content */}
           <View style={styles.content}>
             <Text style={[styles.welcomeTitle, { color: theme.colors.white }]}>
-              Welcome to Adera
+              {currentApp ? `Welcome to ${currentApp.name}` : 'Welcome to Adera'}
             </Text>
             <Text style={[styles.welcomeSubtitle, { color: theme.colors.white }]}>
-              Your all-in-one ecosystem for logistics and e-commerce in Addis Ababa.
+              {currentApp ? currentApp.subtitle : 'Your all-in-one ecosystem for logistics and e-commerce in Addis Ababa.'}
             </Text>
             
             {/* Primary Actions */}
@@ -76,46 +101,6 @@ const GatewayScreen = ({ onLogin, onGuest, onAppSelect }) => {
                 style={styles.secondaryButton}
                 textStyle={{ color: theme.colors.white, fontSize: 16 }}
               />
-            </View>
-            
-            {/* Divider */}
-            <View style={styles.divider}>
-              <View style={[styles.dividerLine, { backgroundColor: theme.colors.white + '40' }]} />
-              <Text style={[styles.dividerText, { color: theme.colors.white }]}>
-                Or choose an app
-              </Text>
-              <View style={[styles.dividerLine, { backgroundColor: theme.colors.white + '40' }]} />
-            </View>
-            
-            {/* App Selection */}
-            <View style={styles.appSelection}>
-              <TouchableOpacity
-                style={[styles.appButton, { backgroundColor: theme.colors.white + '20' }]}
-                onPress={() => handleAppSelect('ptp')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="car" size={24} color={theme.colors.white} />
-                <Text style={[styles.appButtonText, { color: theme.colors.white }]}>
-                  Adera-PTP
-                </Text>
-                <Text style={[styles.appButtonSubtext, { color: theme.colors.white + '80' }]}>
-                  Logistics
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.appButton, { backgroundColor: theme.colors.white + '20' }]}
-                onPress={() => handleAppSelect('shop')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="storefront" size={24} color={theme.colors.white} />
-                <Text style={[styles.appButtonText, { color: theme.colors.white }]}>
-                  Adera-Shop
-                </Text>
-                <Text style={[styles.appButtonSubtext, { color: theme.colors.white + '80' }]}>
-                  E-Commerce
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         </ScrollView>
@@ -159,6 +144,11 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: 'bold',
   },
+  appSubtext: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginTop: 4,
+  },
   illustrationContainer: {
     alignItems: 'center',
     paddingVertical: 20,
@@ -199,44 +189,6 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     opacity: 0.9,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  appSelection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  appButton: {
-    flex: 1,
-    marginHorizontal: 8,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  appButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  appButtonSubtext: {
-    fontSize: 12,
-    fontWeight: '400',
   },
 });
 

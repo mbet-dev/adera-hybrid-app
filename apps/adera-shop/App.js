@@ -1,71 +1,113 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
-import { ThemeProvider } from '@adera/ui';
-import OnboardingScreen from '@adera/ui/src/OnboardingScreen';
-import GatewayScreen from '@adera/ui/src/GatewayScreen';
+import { ThemeProvider, OnboardingScreen, AppSelectorScreen, GatewayScreen, LoadingScreen } from '@adera/ui';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-export default function App() {
+// Main App Component
+function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showAppSelector, setShowAppSelector] = useState(false);
   const [showGateway, setShowGateway] = useState(false);
-  const [userType, setUserType] = useState(null); // 'authenticated', 'guest', 'ptp', 'shop'
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [guestMode, setGuestMode] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-    setShowGateway(true);
-  };
-
-  const handleLogin = () => {
-    setUserType('authenticated');
-    setShowGateway(false);
-    // TODO: Navigate to auth flow
-  };
-
-  const handleGuest = () => {
-    setUserType('guest');
-    setShowGateway(false);
-    // TODO: Navigate to guest mode
+    setShowAppSelector(true);
   };
 
   const handleAppSelect = (appType) => {
-    if (appType === 'ptp') {
-      setUserType('ptp');
-      setShowGateway(false);
-      // TODO: Navigate to PTP app
-    } else if (appType === 'shop') {
-      setUserType('shop');
-      setShowGateway(false);
-      // TODO: Navigate to Shop app
+    setSelectedApp(appType);
+    setShowAppSelector(false);
+    // For Shop app, only proceed if they selected Shop
+    if (appType === 'shop') {
+      setShowGateway(true);
+    } else {
+      // If they selected PTP, redirect them to the PTP app
+      // For now, we'll show a message or redirect logic
+      setShowGateway(true);
     }
   };
 
-  return (
-    <ThemeProvider>
-      <View style={styles.container}>
-        <StatusBar style="light" />
-        {showOnboarding && (
-          <OnboardingScreen onComplete={handleOnboardingComplete} />
-        )}
-        {showGateway && (
-          <GatewayScreen
-            onLogin={handleLogin}
-            onGuest={handleGuest}
-            onAppSelect={handleAppSelect}
-          />
-        )}
-        {!showOnboarding && !showGateway && (
-          <View style={styles.mainContent}>
-            {/* TODO: Implement role-based navigation */}
-          </View>
-        )}
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    setShowGateway(false);
+    // TODO: Navigate to authenticated app
+  };
+
+  const handleGuest = () => {
+    setShowGateway(false);
+    setGuestMode(true);
+  };
+
+  const handleBackToAuth = () => {
+    setGuestMode(false);
+    setShowGateway(true);
+  };
+
+  // If authenticated, show main app
+  if (isAuthenticated) {
+    return (
+      <View style={styles.mainContent}>
+        {/* TODO: Implement Shop app navigation */}
       </View>
-    </ThemeProvider>
+    );
+  }
+
+  // Show onboarding flow for new users
+  if (showOnboarding) {
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
+
+  // Show app selector screen
+  if (showAppSelector) {
+    return <AppSelectorScreen onAppSelect={handleAppSelect} />;
+  }
+
+  // Show gateway/auth screen
+  if (showGateway) {
+    return (
+      <GatewayScreen
+        onLogin={handleLogin}
+        onGuest={handleGuest}
+        selectedApp={selectedApp}
+      />
+    );
+  }
+
+  // Show guest mode for browsing
+  if (guestMode) {
+    return (
+      <View style={styles.mainContent}>
+        {/* TODO: Implement Shop guest mode */}
+      </View>
+    );
+  }
+
+  // Fallback
+  return <LoadingScreen message="Loading..." />;
+}
+
+// Root App with Providers
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <View style={styles.container}>
+          <StatusBar style="dark" backgroundColor="#FFFFFF" />
+          <AppContent />
+        </View>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
   mainContent: {
     flex: 1,

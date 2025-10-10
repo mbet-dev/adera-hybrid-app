@@ -21,22 +21,22 @@ const shared = {
 };
 
 export const lightColors = {
-  primary: '#2E7D32',
+  primary: '#1565C0', // PTP - Professional Blue
   onPrimary: '#FFFFFF',
-  primaryContainer: '#A5D6A7',
-  onPrimaryContainer: '#00210E',
-  secondary: '#FFD700',
-  onSecondary: '#3F2F00',
-  secondaryContainer: '#FFF3AE',
-  onSecondaryContainer: '#241A00',
+  primaryContainer: '#BBDEFB',
+  onPrimaryContainer: '#001B3D',
+  secondary: '#2E7D32', // Shop - Ethiopian Green
+  onSecondary: '#FFFFFF',
+  secondaryContainer: '#A5D6A7',
+  onSecondaryContainer: '#00210E',
   tertiary: '#C62828',
   onTertiary: '#FFFFFF',
   tertiaryContainer: '#FFCDD2',
   onTertiaryContainer: '#410006',
-  background: '#F7FBF4',
-  onBackground: '#181D16',
+  background: '#FFFFFF',
+  onBackground: '#1C1B1F',
   surface: '#FFFFFF',
-  onSurface: '#181D16',
+  onSurface: '#1C1B1F',
   surfaceVariant: '#E0E4D6',
   onSurfaceVariant: '#45483B',
   surfaceContainerLow: '#F1F4EA',
@@ -63,14 +63,14 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  primary: '#7FDB94',
-  onPrimary: '#003919',
-  primaryContainer: '#0B5228',
-  onPrimaryContainer: '#A5D6A7',
-  secondary: '#E0C45C',
-  onSecondary: '#3D2E00',
-  secondaryContainer: '#574500',
-  onSecondaryContainer: '#FFE082',
+  primary: '#90CAF9', // PTP - Light Blue for dark theme
+  onPrimary: '#001B3D',
+  primaryContainer: '#003D82',
+  onPrimaryContainer: '#D0E4FF',
+  secondary: '#7FDB94', // Shop - Light Green for dark theme
+  onSecondary: '#003919',
+  secondaryContainer: '#0B5228',
+  onSecondaryContainer: '#A5D6A7',
   tertiary: '#FF8A80',
   onTertiary: '#5C0009',
   tertiaryContainer: '#7F0D19',

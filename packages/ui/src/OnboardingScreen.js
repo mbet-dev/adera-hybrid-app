@@ -16,26 +16,26 @@ const { width, height } = Dimensions.get('window');
 const slides = [
   {
     title: 'Welcome to Adera',
-    subtitle: 'Your all-in-one ecosystem for logistics and e-commerce in Addis Ababa',
-    description: "Connect, deliver, and shop seamlessly with Ethiopia's premier hybrid platform.",
-    image: '🏢',
+    subtitle: 'Ethiopia\'s Premier Digital Platform',
+    description: "Your all-in-one ecosystem for logistics and e-commerce in Addis Ababa.",
+    image: '🏺',
   },
   {
-    title: 'Send & Track Parcels',
-    subtitle: 'Adera-PTP Logistics',
-    description: 'Create delivery orders, track parcels in real-time, and ensure secure handovers with QR codes.',
-    image: '📦',
+    title: 'Connect Communities',
+    subtitle: 'Bridging Digital & Traditional',
+    description: 'Empowering local businesses and communities through technology and trust.',
+    image: '🤝',
   },
   {
-    title: 'Discover Local Shops',
-    subtitle: 'Adera-Shop Marketplace',
-    description: 'Browse partner stores, discover local products, and enjoy seamless shopping experiences.',
-    image: '🛍️',
+    title: 'Ethiopian Excellence',
+    subtitle: 'Built for Local Needs',
+    description: 'Designed specifically for Ethiopian culture, payments, and infrastructure.',
+    image: '🇪🇹',
   },
   {
-    title: 'Ready to Start?',
-    subtitle: 'Choose Your Journey',
-    description: 'Log in to access full features or continue as a guest to explore our platform.',
+    title: 'Let\'s Begin',
+    subtitle: 'Ready to Explore?',
+    description: 'Choose your app experience and start your journey with Adera.',
     image: '🚀',
   },
 ];
@@ -150,7 +150,7 @@ const OnboardingScreen = ({ onComplete }) => {
               </>
             ) : (
               <Button
-                title="Get Started"
+                title="Choose Your App"
                 variant="outline"
                 onPress={handleNext}
                 style={[styles.button, { borderColor: theme.colors.onPrimary }]}

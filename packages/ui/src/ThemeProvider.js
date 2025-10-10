@@ -12,9 +12,10 @@ export const useTheme = () => {
   return context;
 };
 
-export const ThemeProvider = ({ children }) => {
+export const ThemeProvider = ({ children, forceLightMode = true }) => {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  // For now, force light mode unless explicitly disabled
+  const isDark = forceLightMode ? false : colorScheme === 'dark';
   const palette = isDark ? colors.dark : colors.light;
 
   const theme = {
