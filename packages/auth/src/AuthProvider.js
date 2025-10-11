@@ -170,6 +170,77 @@ const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const resetPassword = async (email) => {
+    if (isDemoMode) {
+      console.log('Demo mode: Password reset email would be sent to:', email);
+      return { success: true };
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) throw error;
+    return { success: true };
+  };
+
+  const updatePassword = async (newPassword) => {
+    if (isDemoMode) {
+      console.log('Demo mode: Password would be updated');
+      return { success: true };
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (error) throw error;
+    return { success: true };
+  };
+
+  const refreshSession = async () => {
+    if (isDemoMode) return;
+
+    const { data, error } = await supabase.auth.refreshSession();
+    if (error) {
+      console.error('Error refreshing session:', error);
+      return;
+    }
+
+    setSession(data.session);
+    setUser(data.session?.user ?? null);
+  };
+
+  const verifyOTP = async (phone, token) => {
+    if (isDemoMode) {
+      console.log('Demo mode: OTP verified for:', phone);
+      return { success: true };
+    }
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone,
+      token,
+      type: 'sms',
+    });
+
+    if (error) throw error;
+    return data;
+  };
+
+  const sendOTP = async (phone) => {
+    if (isDemoMode) {
+      console.log('Demo mode: OTP would be sent to:', phone);
+      return { success: true };
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
+    });
+
+    if (error) throw error;
+    return { success: true };
+  };
+
   const value = {
     session,
     user,
@@ -177,11 +248,19 @@ const AuthProvider = ({ children }) => {
     authState,
     isAuthenticated: authState === AuthState.AUTHENTICATED,
     isLoading: authState === AuthState.LOADING,
+    isDemoMode,
     role: userProfile?.role || null,
+    // Auth methods
     signIn,
     signUp,
     signOut,
     updateProfile,
+    resetPassword,
+    updatePassword,
+    refreshSession,
+    // OTP methods
+    sendOTP,
+    verifyOTP,
   };
 
   return (

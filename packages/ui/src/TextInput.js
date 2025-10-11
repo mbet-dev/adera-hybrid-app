@@ -9,6 +9,8 @@ const TextInput = ({
   helperText,
   required = false,
   style,
+  left,
+  right,
   ...props
 }) => {
   const theme = useTheme();
@@ -29,6 +31,8 @@ const TextInput = ({
           borderColor: error ? theme.colors.error : theme.colors.outline,
         }}
         style={styles.input}
+        left={left}
+        right={right}
         {...props}
       />
       {(error || helperText) && (
