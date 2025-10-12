@@ -68,7 +68,7 @@ const AppSelectorScreen = ({ onAppSelect }) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom', 'left', 'right']}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 32,
+    paddingBottom: 80, // AGGRESSIVE bottom padding to prevent overlap
   },
   header: {
     alignItems: 'center',
@@ -311,7 +311,8 @@ const styles = StyleSheet.create({
     paddingTop: 32,
   },
   continueButton: {
-    marginBottom: 16,
+    marginTop: 32,
+    marginBottom: 40, // Increased bottom margin
   },
   disclaimer: {
     fontSize: 12,

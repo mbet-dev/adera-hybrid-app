@@ -84,7 +84,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
   if (emailSent) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom', 'left', 'right']}>
         <View style={styles.successContainer}>
           <View style={[styles.successIconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
             <MaterialCommunityIcons
@@ -125,7 +125,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom', 'left', 'right']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingBottom: 60, // AGGRESSIVE bottom padding to prevent overlap
   },
   header: {
     alignItems: 'center',
@@ -246,12 +246,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   backButton: {
-    alignSelf: 'flex-start',
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
+    marginTop: 24,
+    marginBottom: 40, // Increased bottom margin
   },
   iconContainer: {
     width: 96,
@@ -309,6 +305,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 64,
+    paddingBottom: 60, // AGGRESSIVE bottom padding to prevent overlap
     alignItems: 'center',
   },
   successIconContainer: {

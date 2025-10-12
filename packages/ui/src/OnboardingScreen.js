@@ -64,7 +64,7 @@ const OnboardingScreen = ({ onComplete }) => {
   const handleSkip = () => onComplete();
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.primary }]}> 
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.primary }]} edges={['top', 'bottom', 'left', 'right']}> 
       <View style={styles.wrapper}>
         <Animated.ScrollView
           ref={pagerRef}

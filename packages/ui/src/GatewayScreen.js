@@ -38,7 +38,7 @@ const GatewayScreen = ({ onLogin, onGuest, selectedApp = null }) => {
   const currentApp = selectedApp ? appConfig[selectedApp] : null;
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       <View 
         style={[styles.gradient, { backgroundColor: currentApp ? currentApp.color : theme.colors.primary }]}
       >
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 80, // AGGRESSIVE bottom padding to prevent overlap
   },
   welcomeTitle: {
     fontSize: 28,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   primaryActions: {
-    marginBottom: 32,
+    marginBottom: 60, // Increased margin for better spacing
   },
   primaryButton: {
     marginBottom: 16,

@@ -13,7 +13,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: typeof window !== 'undefined', // Enable for web, disable for native
+    flowType: 'pkce', // Use PKCE flow for better security
   },
 });
 

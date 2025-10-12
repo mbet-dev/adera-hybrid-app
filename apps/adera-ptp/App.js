@@ -4,7 +4,7 @@ import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { ThemeProvider, OnboardingScreen, AppSelectorScreen, LoadingScreen } from '@adera/ui';
-import { AuthProvider, useAuth } from '@adera/auth';
+import { AuthProvider, useAuth, EmailConfirmationHandler } from '@adera/auth';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 
@@ -12,7 +12,20 @@ import AuthNavigator from './src/navigation/AuthNavigator';
 function AppContent() {
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showAppSelector, setShowAppSelector] = useState(false);
+  const [showEmailConfirmation, setShowEmailConfirmation] = useState(false);
   const { isAuthenticated, isLoading } = useAuth();
+
+  // Check for email confirmation callback on web
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location && window.location.hash) {
+      const hash = window.location.hash;
+      if (hash.includes('type=signup') && hash.includes('access_token')) {
+        setShowEmailConfirmation(true);
+        setShowOnboarding(false);
+        setShowAppSelector(false);
+      }
+    }
+  }, []);
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
@@ -24,6 +37,11 @@ function AppContent() {
     // In the future, you could redirect to different apps
     setShowAppSelector(false);
   };
+
+  // Show email confirmation handler
+  if (showEmailConfirmation) {
+    return <EmailConfirmationHandler />;
+  }
 
   // Show loading while auth is initializing
   if (isLoading) {

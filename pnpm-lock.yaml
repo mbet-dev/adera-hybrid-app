@@ -225,6 +225,9 @@ importers:
       react-native-paper:
         specifier: ^5.11.6
         version: 5.14.5(react-native-safe-area-context@5.6.1(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(@types/react@18.2.79)(react@19.1.0))(react@19.1.0))(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(@types/react@18.2.79)(react@19.1.0))(react@19.1.0)
+      react-native-safe-area-context:
+        specifier: ~5.6.0
+        version: 5.6.1(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(@types/react@18.2.79)(react@19.1.0))(react@19.1.0)
       react-native-vector-icons:
         specifier: ^10.0.3
         version: 10.3.0

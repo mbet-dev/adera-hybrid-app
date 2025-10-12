@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card } from '@adera/ui';
 import { useTheme } from '@adera/ui';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +17,7 @@ const GuestNavigator = ({ onBackToAuth }) => {
   ];
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom', 'left', 'right']}>
       {/* Simple Header */}
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity 
@@ -92,7 +93,7 @@ const GuestNavigator = ({ onBackToAuth }) => {
           />
         </Card>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -105,7 +106,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingTop: 24,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -134,6 +134,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+    paddingBottom: 60, // AGGRESSIVE bottom padding to prevent overlap
   },
   contentHeader: {
     marginBottom: 24,
@@ -191,6 +192,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
     marginTop: 8,
+    marginBottom: 40, // Extra bottom margin
   },
   promptIcon: {
     marginBottom: 12,

@@ -3,10 +3,16 @@
     "name": "adera-ptp",
     "slug": "adera-ptp",
     "version": "1.0.0",
+    "entryPoint": "index.js",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "splash": {
       "backgroundColor": "#2E7D32"
+    },
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "never",
+      "fallbackToCacheTimeout": 0
     },
     "ios": {
       "supportsTablet": true

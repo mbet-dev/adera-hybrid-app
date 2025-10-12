@@ -58,7 +58,7 @@ const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserProfile = async (userId) => {
+  const fetchUserProfile = async (userId, retryCount = 0) => {
     if (isDemoMode) {
       // Demo profile - you can test different roles here
       setUserProfile({
@@ -84,6 +84,17 @@ const AuthProvider = ({ children }) => {
 
       if (error) {
         console.error('Error fetching user profile:', error);
+        
+        // If user profile doesn't exist and this is first retry, wait and try again
+        // This handles the case where email confirmation trigger hasn't run yet
+        if (error.code === 'PGRST116' && retryCount < 3) {
+          console.log(`User profile not found, retrying in ${(retryCount + 1) * 2} seconds...`);
+          setTimeout(() => {
+            fetchUserProfile(userId, retryCount + 1);
+          }, (retryCount + 1) * 2000);
+          return;
+        }
+        
         setAuthState(AuthState.UNAUTHENTICATED);
         return;
       }
@@ -92,6 +103,16 @@ const AuthProvider = ({ children }) => {
       setAuthState(AuthState.AUTHENTICATED);
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
+      
+      // Retry logic for network errors
+      if (retryCount < 2) {
+        console.log(`Network error, retrying in ${(retryCount + 1) * 3} seconds...`);
+        setTimeout(() => {
+          fetchUserProfile(userId, retryCount + 1);
+        }, (retryCount + 1) * 3000);
+        return;
+      }
+      
       setAuthState(AuthState.UNAUTHENTICATED);
     }
   };
@@ -123,11 +144,23 @@ const AuthProvider = ({ children }) => {
       return { user: demoUser };
     }
 
+    // Determine redirect URL based on platform
+    const getRedirectUrl = () => {
+      if (typeof window !== 'undefined' && window.location && window.location.origin) {
+        // Web platform
+        return `${window.location.origin}/auth/callback`;
+      } else {
+        // Native platform - use deep link
+        return 'com.adera.app://auth/callback';
+      }
+    };
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: userData,
+        emailRedirectTo: getRedirectUrl(),
       },
     });
 
