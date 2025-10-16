@@ -14,11 +14,14 @@
       "checkAutomatically": "never",
       "fallbackToCacheTimeout": 0
     },
+    "scheme": "adera",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.adera.app"
     },
     "android": {
-      "backgroundColor": "#2E7D32"
+      "backgroundColor": "#2E7D32",
+      "package": "com.adera.app"
     },
     "web": {
       "bundler": "metro"

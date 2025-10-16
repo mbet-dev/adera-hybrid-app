@@ -26,15 +26,128 @@ const EmailConfirmationHandler = ({ navigation, route }) => {
 
   const handleEmailConfirmation = async () => {
     try {
-      // For web platform, check URL hash for tokens
+      // For web platform, check URL hash for tokens or PKCE code
       if (typeof window !== 'undefined') {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const refreshToken = hashParams.get('refresh_token');
-        const type = hashParams.get('type');
+        const searchParams = new URLSearchParams(window.location.search);
+        const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
+        const type = hashParams.get('type') || searchParams.get('type');
+        const code = hashParams.get('code') || searchParams.get('code');
+
+        console.log('Email confirmation handler - type:', type, 'has tokens:', !!accessToken);
+
+        if (code) {
+          // PKCE code exchange (web)
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error('Error exchanging code for session (web):', error);
+            setStatus('error');
+            setMessage('Failed to confirm email. Please try logging in again.');
+            setTimeout(() => { window.location.href = '/'; }, 3000);
+            return;
+          }
+          setStatus('success');
+          setMessage('Email confirmed successfully! Welcome to Adera! 🇪🇹');
+          // Clear query/hash to prevent re-processing
+          window.history.replaceState(null, null, window.location.pathname);
+          setTimeout(() => { window.location.href = '/'; }, 1500);
+          return;
+        }
 
         if (type === 'signup' && accessToken) {
           // Set the session with the tokens
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+
+          if (error) {
+            console.error('Error setting session:', error);
+            setStatus('error');
+            setMessage('Failed to confirm email. Please try logging in again.');
+            
+            // Redirect to login after 3 seconds
+            setTimeout(() => {
+              if (navigation) {
+                navigation.navigate('Login');
+              } else {
+                window.location.href = '/';
+              }
+            }, 3000);
+            return;
+          }
+
+          console.log('Session set successfully:', data.session?.user?.id);
+          setStatus('success');
+          setMessage('Email confirmed successfully! Welcome to Adera! 🇪🇹');
+          
+          // Clear the hash from URL to prevent re-processing
+          window.history.replaceState(null, null, window.location.pathname);
+          
+          // Store a flag to indicate confirmation was successful
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('adera_email_confirmed', 'true');
+          }
+          
+          // Redirect to main app after 2 seconds
+          setTimeout(() => {
+            if (navigation) {
+              navigation.navigate('Main');
+            } else {
+              // Force a full page reload to ensure auth state is picked up
+              window.location.href = '/';
+            }
+          }, 2000);
+        } else {
+          setStatus('error');
+          setMessage('Invalid confirmation link. Please check your email and try again.');
+          
+          // Redirect to login after 4 seconds
+          setTimeout(() => {
+            if (navigation) {
+              navigation.navigate('Login');
+            } else {
+              window.location.href = '/';
+            }
+          }, 4000);
+        }
+      } else {
+        // For native platform, handle deep link parameters (from Expo Linking)
+        const params = route?.params || {};
+        let accessToken = params.access_token;
+        let refreshToken = params.refresh_token;
+        const code = params.code;
+
+        // PKCE code exchange (native)
+        if (code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.error('Error exchanging code for session (native):', error);
+            setStatus('error');
+            setMessage('Failed to confirm email. Please try logging in again.');
+            return;
+          }
+          setStatus('success');
+          setMessage('Email confirmed successfully! Welcome to Adera! 🇪🇹');
+          setTimeout(() => { navigation.navigate('Main'); }, 1500);
+          return;
+        }
+
+        // Extra safety: sometimes providers put tokens on the fragment
+        if ((!accessToken || !refreshToken) && typeof params?.url === 'string') {
+          try {
+            const hashIndex = params.url.indexOf('#');
+            if (hashIndex !== -1) {
+              const fragment = params.url.substring(hashIndex + 1);
+              const fragParams = new URLSearchParams(fragment);
+              accessToken = accessToken || fragParams.get('access_token');
+              refreshToken = refreshToken || fragParams.get('refresh_token');
+            }
+          } catch {}
+        }
+
+        if (accessToken && refreshToken) {
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
@@ -47,50 +160,17 @@ const EmailConfirmationHandler = ({ navigation, route }) => {
             return;
           }
 
+          console.log('Session set successfully (native):', data.session?.user?.id);
           setStatus('success');
           setMessage('Email confirmed successfully! Welcome to Adera! 🇪🇹');
           
-          // Clear the hash from URL
-          window.history.replaceState(null, null, window.location.pathname);
-          
-          // Redirect to main app after 3 seconds
-          setTimeout(() => {
-            if (navigation) {
-              navigation.navigate('Main');
-            } else {
-              window.location.href = '/';
-            }
-          }, 3000);
-        } else {
-          setStatus('error');
-          setMessage('Invalid confirmation link. Please check your email and try again.');
-        }
-      } else {
-        // For native platform, handle deep link parameters
-        const params = route?.params;
-        if (params?.access_token && params?.refresh_token) {
-          const { data, error } = await supabase.auth.setSession({
-            access_token: params.access_token,
-            refresh_token: params.refresh_token,
-          });
-
-          if (error) {
-            console.error('Error setting session:', error);
-            setStatus('error');
-            setMessage('Failed to confirm email. Please try again.');
-            return;
-          }
-
-          setStatus('success');
-          setMessage('Email confirmed successfully! Welcome to Adera! 🇪🇹');
-          
-          // Redirect to main app after 3 seconds
+          // Redirect to main app after 2 seconds
           setTimeout(() => {
             navigation.navigate('Main');
-          }, 3000);
+          }, 2000);
         } else {
           setStatus('error');
-          setMessage('Invalid confirmation link. Please check your email and try again.');
+          setMessage('Invalid or missing tokens. Re-open the confirmation link from your email.');
         }
       }
     } catch (error) {

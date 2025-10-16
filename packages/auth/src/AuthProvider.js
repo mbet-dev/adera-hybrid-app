@@ -33,6 +33,8 @@ const AuthProvider = ({ children }) => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
+        // Consider user authenticated immediately; fetch profile in the background
+        setAuthState(AuthState.AUTHENTICATED);
         fetchUserProfile(session.user.id);
       } else {
         setAuthState(AuthState.UNAUTHENTICATED);
@@ -47,7 +49,9 @@ const AuthProvider = ({ children }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchUserProfile(session.user.id);
+          // Mark authenticated immediately; profile may follow shortly
+          setAuthState(AuthState.AUTHENTICATED);
+          fetchUserProfile(session.user.id);
         } else {
           setUserProfile(null);
           setAuthState(AuthState.UNAUTHENTICATED);
@@ -74,7 +78,7 @@ const AuthProvider = ({ children }) => {
     }
 
     try {
-      setAuthState(AuthState.LOADING);
+      // Do not drop global auth loading here; keep UI authenticated while fetching profile
       
       const { data, error } = await supabase
         .from('users')
@@ -94,8 +98,8 @@ const AuthProvider = ({ children }) => {
           }, (retryCount + 1) * 2000);
           return;
         }
-        
-        setAuthState(AuthState.UNAUTHENTICATED);
+        // Keep user authenticated despite profile error; set minimal profile
+        setUserProfile({ id: userId, role: 'customer' });
         return;
       }
 
@@ -112,8 +116,8 @@ const AuthProvider = ({ children }) => {
         }, (retryCount + 1) * 3000);
         return;
       }
-      
-      setAuthState(AuthState.UNAUTHENTICATED);
+      // Keep user authenticated; show minimal profile
+      setUserProfile(prev => prev || { id: userId, role: 'customer' });
     }
   };
 
@@ -126,12 +130,26 @@ const AuthProvider = ({ children }) => {
       return { user: demoUser };
     }
 
+    // First, try to refresh any existing session to ensure we have latest auth state
+    try {
+      await supabase.auth.refreshSession();
+    } catch (refreshError) {
+      // Ignore refresh errors, continue with sign in
+      console.log('Session refresh before sign in:', refreshError?.message);
+    }
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) throw error;
+    if (error) {
+      // Handle 'Email not confirmed' error specifically
+      if (error.message.includes('Email not confirmed')) {
+        throw new Error('EMAIL_NOT_CONFIRMED');
+      }
+      throw error;
+    }
     return data;
   };
 
@@ -146,12 +164,18 @@ const AuthProvider = ({ children }) => {
 
     // Determine redirect URL based on platform
     const getRedirectUrl = () => {
-      if (typeof window !== 'undefined' && window.location && window.location.origin) {
-        // Web platform
-        return `${window.location.origin}/auth/callback`;
-      } else {
-        // Native platform - use deep link
-        return 'com.adera.app://auth/callback';
+      // Allow overriding via env (paste the exact Expo URL, e.g., exp://192.168.1.11:8081)
+      if (process.env.EXPO_PUBLIC_APP_URL) {
+        return `${process.env.EXPO_PUBLIC_APP_URL.replace(/\/?$/, '')}/auth/callback`;
+      }
+      try {
+        const Linking = require('expo-linking');
+        return Linking.createURL('auth/callback');
+      } catch (e) {
+        if (typeof window !== 'undefined' && window.location && window.location.origin) {
+          return `${window.location.origin}/auth/callback`;
+        }
+        return 'adera://auth/callback';
       }
     };
 
@@ -210,7 +234,9 @@ const AuthProvider = ({ children }) => {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: typeof window !== 'undefined' && window.location && window.location.origin
+        ? `${window.location.origin}/reset-password`
+        : `${process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://demo.supabase.co'}/reset-password`,
     });
 
     if (error) throw error;
@@ -274,6 +300,58 @@ const AuthProvider = ({ children }) => {
     return { success: true };
   };
 
+  const resendConfirmationEmail = async (email) => {
+    if (isDemoMode) {
+      console.log('Demo mode: Confirmation email would be resent to:', email);
+      return { success: true };
+    }
+
+    // Determine redirect URL based on platform
+    const getRedirectUrl = () => {
+      if (process.env.EXPO_PUBLIC_APP_URL) {
+        return `${process.env.EXPO_PUBLIC_APP_URL.replace(/\/?$/, '')}/auth/callback`;
+      }
+      try {
+        const Linking = require('expo-linking');
+        return Linking.createURL('auth/callback');
+      } catch (e) {
+        if (typeof window !== 'undefined' && window.location && window.location.origin) {
+          return `${window.location.origin}/auth/callback`;
+        }
+        return 'adera://auth/callback';
+      }
+    };
+
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email,
+      options: {
+        emailRedirectTo: getRedirectUrl(),
+      },
+    });
+
+    if (error) throw error;
+    return { success: true };
+  };
+
+  const checkEmailConfirmationStatus = async () => {
+    if (isDemoMode) {
+      return { confirmed: true };
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // If we have a valid session, email is confirmed
+        return { confirmed: true, user: session.user };
+      }
+      return { confirmed: false };
+    } catch (error) {
+      console.error('Error checking email confirmation:', error);
+      return { confirmed: false, error };
+    }
+  };
+
   const value = {
     session,
     user,
@@ -291,9 +369,11 @@ const AuthProvider = ({ children }) => {
     resetPassword,
     updatePassword,
     refreshSession,
+    checkEmailConfirmationStatus,
     // OTP methods
     sendOTP,
     verifyOTP,
+    resendConfirmationEmail,
   };
 
   return (
