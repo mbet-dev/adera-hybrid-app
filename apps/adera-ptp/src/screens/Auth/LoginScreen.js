@@ -16,7 +16,7 @@ import { Button, TextInput, useTheme } from '@adera/ui';
 
 const LoginScreen = ({ navigation }) => {
   const theme = useTheme();
-  const { signIn, isLoading, resendConfirmationEmail, checkEmailConfirmationStatus, refreshSession } = useAuth();
+  const { signIn, isLoading } = useAuth();
   const { getErrorMessage, isNetworkError } = useAuthErrors();
 
   const [email, setEmail] = useState('');
@@ -25,9 +25,6 @@ const LoginScreen = ({ navigation }) => {
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   const [showResendLink, setShowResendLink] = useState(false);
-  const [showRefreshLink, setShowRefreshLink] = useState(false);
-  const [resendEmail, setResendEmail] = useState('');
-  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -74,14 +71,7 @@ const LoginScreen = ({ navigation }) => {
       console.error('Login error:', error);
       const message = getErrorMessage(error);
 
-      if (error.message === 'EMAIL_NOT_CONFIRMED') {
-        setErrorMessage(
-          'Your email is not confirmed yet. If you already clicked the confirmation link, try refreshing your session.'
-        );
-        setShowResendLink(true);
-        setShowRefreshLink(true);
-        setResendEmail(email.trim().toLowerCase());
-      } else if (isNetworkError(error)) {
+      if (isNetworkError(error)) {
         // Network-specific error handling
         Alert.alert(
           '🌐 Connection Issue',
@@ -95,63 +85,6 @@ const LoginScreen = ({ navigation }) => {
         // Display error in UI
         setErrorMessage(message || 'Login failed. Please try again.');
       }
-    }
-  };
-
-  const handleResendConfirmation = async () => {
-    try {
-      await resendConfirmationEmail(resendEmail);
-      Alert.alert(
-        '✉️ Email Sent',
-        `A new confirmation email has been sent to ${resendEmail}. Please check your inbox and click the link.`,
-        [{ text: 'OK' }]
-      );
-      setShowResendLink(false);
-      setShowRefreshLink(false);
-    } catch (error) {
-      Alert.alert(
-        '❌ Error',
-        `Failed to resend confirmation email: ${error.message}`,
-        [{ text: 'OK' }]
-      );
-    }
-  };
-
-  const handleRefreshSession = async () => {
-    setIsRefreshing(true);
-    try {
-      // First refresh the session
-      await refreshSession();
-      
-      // Wait a moment for the session to update
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Check confirmation status
-      const status = await checkEmailConfirmationStatus();
-      
-      if (status.confirmed) {
-        // Try logging in again
-        setErrorMessage('Email confirmed! Logging you in...');
-        setShowResendLink(false);
-        setShowRefreshLink(false);
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await handleLogin();
-      } else {
-        Alert.alert(
-          'ℹ️ Not Confirmed Yet',
-          'Your email is still not confirmed. Please check your inbox and click the confirmation link, then try refreshing again.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      Alert.alert(
-        '❌ Error',
-        `Failed to refresh session: ${error.message}`,
-        [{ text: 'OK' }]
-      );
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -216,29 +149,9 @@ const LoginScreen = ({ navigation }) => {
                   <Text style={[styles.errorBannerText, { color: theme.colors.error }]}>
                     {errorMessage}
                   </Text>
-                  {(showResendLink || showRefreshLink) && (
+                  {showResendLink && (
                     <View style={styles.errorActions}>
-                      {showRefreshLink && (
-                        <TouchableOpacity
-                          onPress={handleRefreshSession}
-                          disabled={isRefreshing}
-                          style={styles.errorActionButton}
-                        >
-                          <Text style={[styles.errorActionText, { color: theme.colors.primary }]}>
-                            {isRefreshing ? 'Refreshing...' : '🔄 Refresh Session'}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                      {showResendLink && (
-                        <TouchableOpacity
-                          onPress={handleResendConfirmation}
-                          style={styles.errorActionButton}
-                        >
-                          <Text style={[styles.errorActionText, { color: theme.colors.primary }]}>
-                            📧 Resend Email
-                          </Text>
-                        </TouchableOpacity>
-                      )}
+                      <Text style={[styles.errorBannerText, { color: theme.colors.text.secondary }]}>Check your inbox for confirmation.</Text>
                     </View>
                   )}
                 </View>

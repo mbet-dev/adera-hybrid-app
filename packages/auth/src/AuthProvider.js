@@ -4,8 +4,8 @@ import { AuthState, UserRole } from './types';
 
 export const AuthContext = createContext();
 
-// Demo mode check
-const isDemoMode = !process.env.EXPO_PUBLIC_SUPABASE_URL;
+// Demo mode disabled in rewritten auth logic
+const isDemoMode = false;
 
 const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
