@@ -130,25 +130,25 @@ const OnboardingScreen = ({ onComplete }) => {
             ))}
           </View>
 
-          <View style={styles.buttonRow}>
-            {currentSlide < slides.length - 1 ? (
-              <>
-                <Button
-                  title="Skip"
-                  variant="ghost"
-                  onPress={handleSkip}
-                  style={styles.button}
-                  textStyle={{ color: theme.colors.onPrimary }}
-                />
-                <Button
-                  title="Next"
-                  variant="outline"
-                  onPress={handleNext}
-                  style={[styles.button, { borderColor: theme.colors.onPrimary }]}
-                  textStyle={{ color: theme.colors.onPrimary }}
-                />
-              </>
-            ) : (
+          {currentSlide < slides.length - 1 ? (
+            <View style={styles.buttonRow}>
+              <Button
+                title="Skip"
+                variant="ghost"
+                onPress={handleSkip}
+                style={styles.button}
+                textStyle={{ color: theme.colors.onPrimary }}
+              />
+              <Button
+                title="Next"
+                variant="outline"
+                onPress={handleNext}
+                style={[styles.button, { borderColor: theme.colors.onPrimary }]}
+                textStyle={{ color: theme.colors.onPrimary }}
+              />
+            </View>
+          ) : (
+            <View style={styles.buttonRow}>
               <Button
                 title="Choose Your App"
                 variant="outline"
@@ -156,8 +156,8 @@ const OnboardingScreen = ({ onComplete }) => {
                 style={[styles.button, { borderColor: theme.colors.onPrimary }]}
                 textStyle={{ color: theme.colors.onPrimary }}
               />
-            )}
-          </View>
+            </View>
+          )}
         </View>
       </View>
     </SafeAreaView>

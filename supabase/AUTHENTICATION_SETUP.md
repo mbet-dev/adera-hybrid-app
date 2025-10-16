@@ -46,34 +46,34 @@ In Authentication → URL Configuration, add these redirect URLs:
 
 **For Development:**
 ```
-# Web Development
-http://localhost:8081/auth/callback
-http://localhost:8082/auth/callback
-http://127.0.0.1:8081/auth/callback
+# Web Development - Main app URL (hash parsing handles confirmation)
+http://localhost:8081/
+http://localhost:8082/
+http://127.0.0.1:8081/
 
 # Native Development (Expo)
-exp://localhost:8081/--/auth/callback
-exp://localhost:8082/--/auth/callback
-exp://192.168.1.100:8081/--/auth/callback  # Replace with your IP
+exp://localhost:8081/--/
+exp://localhost:8082/--/
+exp://192.168.1.100:8081/--/  # Replace with your IP
 
 # Universal Development
-exp://localhost:*/--/auth/callback
-http://localhost:*/auth/callback
+exp://localhost:*//--/
+http://localhost:*//
 ```
 
 **For Production:**
 ```
-# Web Production
-https://yourdomain.com/auth/callback
-https://app.adera.et/auth/callback
+# Web Production - Main app URL
+https://yourdomain.com/
+https://app.adera.et/
 
 # Native Production (after app store deployment)
-com.adera.ptp://auth/callback
-com.adera.shop://auth/callback
+com.adera.ptp://
+com.adera.shop://
 
 # Expo Production
-exp://exp.host/@yourusername/adera-ptp/--/auth/callback
-exp://exp.host/@yourusername/adera-shop/--/auth/callback
+exp://exp.host/@yourusername/adera-ptp/--/
+exp://exp.host/@yourusername/adera-shop/--/
 ```
 
 ## 3. Environment Variables

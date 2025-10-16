@@ -16,13 +16,18 @@ import { Button, TextInput, useTheme } from '@adera/ui';
 
 const LoginScreen = ({ navigation }) => {
   const theme = useTheme();
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading, resendConfirmationEmail, checkEmailConfirmationStatus, refreshSession } = useAuth();
   const { getErrorMessage, isNetworkError } = useAuthErrors();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showResendLink, setShowResendLink] = useState(false);
+  const [showRefreshLink, setShowRefreshLink] = useState(false);
+  const [resendEmail, setResendEmail] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -52,7 +57,10 @@ const LoginScreen = ({ navigation }) => {
   const handleLogin = async () => {
     // Clear previous errors
     setErrors({});
-    
+    setErrorMessage('');
+    setShowResendLink(false);
+    setShowRefreshLink(false);
+
     // Validate form
     if (!validateForm()) {
       return;
@@ -66,7 +74,14 @@ const LoginScreen = ({ navigation }) => {
       console.error('Login error:', error);
       const message = getErrorMessage(error);
 
-      if (isNetworkError(error)) {
+      if (error.message === 'EMAIL_NOT_CONFIRMED') {
+        setErrorMessage(
+          'Your email is not confirmed yet. If you already clicked the confirmation link, try refreshing your session.'
+        );
+        setShowResendLink(true);
+        setShowRefreshLink(true);
+        setResendEmail(email.trim().toLowerCase());
+      } else if (isNetworkError(error)) {
         // Network-specific error handling
         Alert.alert(
           '🌐 Connection Issue',
@@ -78,13 +93,65 @@ const LoginScreen = ({ navigation }) => {
         );
       } else {
         // Display error in UI
-        setErrors({ general: message });
-        
-        // Auto-clear error after 5 seconds
-        setTimeout(() => {
-          setErrors(prev => ({ ...prev, general: null }));
-        }, 5000);
+        setErrorMessage(message || 'Login failed. Please try again.');
       }
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    try {
+      await resendConfirmationEmail(resendEmail);
+      Alert.alert(
+        '✉️ Email Sent',
+        `A new confirmation email has been sent to ${resendEmail}. Please check your inbox and click the link.`,
+        [{ text: 'OK' }]
+      );
+      setShowResendLink(false);
+      setShowRefreshLink(false);
+    } catch (error) {
+      Alert.alert(
+        '❌ Error',
+        `Failed to resend confirmation email: ${error.message}`,
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleRefreshSession = async () => {
+    setIsRefreshing(true);
+    try {
+      // First refresh the session
+      await refreshSession();
+      
+      // Wait a moment for the session to update
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check confirmation status
+      const status = await checkEmailConfirmationStatus();
+      
+      if (status.confirmed) {
+        // Try logging in again
+        setErrorMessage('Email confirmed! Logging you in...');
+        setShowResendLink(false);
+        setShowRefreshLink(false);
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await handleLogin();
+      } else {
+        Alert.alert(
+          'ℹ️ Not Confirmed Yet',
+          'Your email is still not confirmed. Please check your inbox and click the confirmation link, then try refreshing again.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        '❌ Error',
+        `Failed to refresh session: ${error.message}`,
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -136,6 +203,45 @@ const LoginScreen = ({ navigation }) => {
                 <Text style={[styles.errorBannerText, { color: theme.colors.error }]}>
                   {errors.general}
                 </Text>
+              </View>
+            )}
+            {errorMessage && (
+              <View style={[styles.errorBanner, { backgroundColor: theme.colors.errorContainer }]}>
+                <MaterialCommunityIcons
+                  name="alert-circle"
+                  size={20}
+                  color={theme.colors.error}
+                />
+                <View style={styles.errorContent}>
+                  <Text style={[styles.errorBannerText, { color: theme.colors.error }]}>
+                    {errorMessage}
+                  </Text>
+                  {(showResendLink || showRefreshLink) && (
+                    <View style={styles.errorActions}>
+                      {showRefreshLink && (
+                        <TouchableOpacity
+                          onPress={handleRefreshSession}
+                          disabled={isRefreshing}
+                          style={styles.errorActionButton}
+                        >
+                          <Text style={[styles.errorActionText, { color: theme.colors.primary }]}>
+                            {isRefreshing ? 'Refreshing...' : '🔄 Refresh Session'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      {showResendLink && (
+                        <TouchableOpacity
+                          onPress={handleResendConfirmation}
+                          style={styles.errorActionButton}
+                        >
+                          <Text style={[styles.errorActionText, { color: theme.colors.primary }]}>
+                            📧 Resend Email
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
               </View>
             )}
 
@@ -289,15 +395,34 @@ const styles = StyleSheet.create({
   },
   errorBanner: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
   },
-  errorBannerText: {
+  errorContent: {
     flex: 1,
     marginLeft: 8,
+  },
+  errorBannerText: {
     fontSize: 14,
+    marginBottom: 8,
+  },
+  errorActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  errorActionButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  errorActionText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   inputIcon: {
     marginLeft: 12,
