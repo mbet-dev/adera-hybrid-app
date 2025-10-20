@@ -1,15 +1,33 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
-import { Text, List, Switch, Avatar } from 'react-native-paper';
-import { AppBar, Card, Button, useTheme } from '@adera/ui';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Alert,
+} from 'react-native';
+import { SafeArea, Card, useTheme } from '@adera/ui';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@adera/auth';
-import { Ionicons } from '@expo/vector-icons';
 
 const Profile = ({ navigation }) => {
   const theme = useTheme();
-  const { user, userProfile, signOut } = useAuth();
+  const { signOut } = useAuth();
   const [notifications, setNotifications] = useState(true);
-  const [emailUpdates, setEmailUpdates] = useState(true);
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(false);
+  const [language, setLanguage] = useState('en');
+
+  const user = {
+    name: 'Alex Mengistu',
+    email: 'alex.mengistu@example.com',
+    phone: '+251 911 234 567',
+    joinDate: '2024-12-15',
+    totalParcels: 12,
+    walletBalance: 1250.5,
+  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -17,230 +35,446 @@ const Profile = ({ navigation }) => {
       'Are you sure you want to sign out?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Sign Out', 
+        {
+          text: 'Sign Out',
           style: 'destructive',
-          onPress: () => signOut()
-        }
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
+        },
       ]
     );
   };
 
-  const profileItems = [
+  const handleLanguageChange = () => {
+    Alert.alert(
+      'Select Language',
+      'Choose your preferred language',
+      [
+        {
+          text: 'English',
+          onPress: () => setLanguage('en'),
+        },
+        {
+          text: 'አማርኛ (Amharic)',
+          onPress: () => setLanguage('am'),
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  const menuItems = [
     {
-      title: 'Personal Information',
-      icon: 'person-outline',
-      onPress: () => console.log('Edit profile')
+      section: 'Account',
+      items: [
+        {
+          id: 'edit-profile',
+          label: 'Edit Profile',
+          icon: 'account-edit',
+          onPress: () => Alert.alert('Coming Soon', 'Profile edit feature coming soon'),
+        },
+        {
+          id: 'wallet',
+          label: 'Wallet & Payments',
+          icon: 'wallet',
+          onPress: () => Alert.alert('Coming Soon', 'Wallet management coming soon'),
+        },
+        {
+          id: 'addresses',
+          label: 'Saved Addresses',
+          icon: 'map-marker',
+          onPress: () => Alert.alert('Coming Soon', 'Address management coming soon'),
+        },
+      ],
     },
     {
-      title: 'Payment Methods',
-      icon: 'card-outline',
-      onPress: () => console.log('Payment methods')
+      section: 'Preferences',
+      items: [
+        {
+          id: 'notifications',
+          label: 'Push Notifications',
+          icon: 'bell',
+          type: 'switch',
+          value: notifications,
+          onToggle: setNotifications,
+        },
+        {
+          id: 'email-notifications',
+          label: 'Email Notifications',
+          icon: 'email',
+          type: 'switch',
+          value: emailNotifications,
+          onToggle: setEmailNotifications,
+        },
+        {
+          id: 'sms-notifications',
+          label: 'SMS Notifications',
+          icon: 'message',
+          type: 'switch',
+          value: smsNotifications,
+          onToggle: setSmsNotifications,
+        },
+        {
+          id: 'language',
+          label: 'Language',
+          icon: 'translate',
+          value: language === 'en' ? 'English' : 'አማርኛ',
+          onPress: handleLanguageChange,
+        },
+      ],
     },
     {
-      title: 'Delivery Addresses',
-      icon: 'location-outline',
-      onPress: () => console.log('Addresses')
+      section: 'Support',
+      items: [
+        {
+          id: 'help',
+          label: 'Help & Support',
+          icon: 'help-circle',
+          onPress: () => Alert.alert('Help', 'Help center coming soon'),
+        },
+        {
+          id: 'terms',
+          label: 'Terms & Conditions',
+          icon: 'file-document',
+          onPress: () => Alert.alert('Terms', 'Terms & conditions coming soon'),
+        },
+        {
+          id: 'privacy',
+          label: 'Privacy Policy',
+          icon: 'shield-check',
+          onPress: () => Alert.alert('Privacy', 'Privacy policy coming soon'),
+        },
+        {
+          id: 'about',
+          label: 'About Adera',
+          icon: 'information',
+          onPress: () => Alert.alert('About', 'Version 1.0.0\n© 2025 Adera PTP'),
+        },
+      ],
     },
-    {
-      title: 'Help & Support',
-      icon: 'help-circle-outline',
-      onPress: () => console.log('Help')
-    },
-    {
-      title: 'Terms & Privacy',
-      icon: 'document-text-outline',
-      onPress: () => console.log('Terms')
-    }
   ];
 
+  const renderProfileHeader = () => (
+    <Card style={styles.profileCard}>
+      <View style={styles.profileHeader}>
+        <View style={[styles.avatar, { backgroundColor: theme.colors.primaryContainer }]}>
+          <Text style={[styles.avatarText, { color: theme.colors.primary }]}>
+            {user.name.split(' ').map(n => n[0]).join('')}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.editButton, { backgroundColor: theme.colors.surfaceVariant }]}
+          onPress={() => Alert.alert('Coming Soon', 'Profile edit coming soon')}
+        >
+          <MaterialCommunityIcons
+            name="pencil"
+            size={20}
+            color={theme.colors.text.primary}
+          />
+        </TouchableOpacity>
+      </View>
+      <Text style={[styles.userName, { color: theme.colors.text.primary }]}>
+        {user.name}
+      </Text>
+      <Text style={[styles.userEmail, { color: theme.colors.text.secondary }]}>
+        {user.email}
+      </Text>
+      <View style={styles.userStats}>
+        <View style={styles.statItem}>
+          <MaterialCommunityIcons
+            name="package-variant"
+            size={20}
+            color={theme.colors.primary}
+          />
+          <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>
+            {user.totalParcels}
+          </Text>
+          <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>
+            Parcels
+          </Text>
+        </View>
+        <View style={[styles.statDivider, { backgroundColor: theme.colors.outline }]} />
+        <View style={styles.statItem}>
+          <MaterialCommunityIcons
+            name="calendar"
+            size={20}
+            color={theme.colors.primary}
+          />
+          <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>
+            {new Date(user.joinDate).toLocaleDateString('en-US', {
+              month: 'short',
+              year: 'numeric',
+            })}
+          </Text>
+          <Text style={[styles.statLabel, { color: theme.colors.text.secondary }]}>
+            Member Since
+          </Text>
+        </View>
+      </View>
+    </Card>
+  );
+
+  const renderMenuItem = (item) => {
+    if (item.type === 'switch') {
+      return (
+        <View key={item.id} style={styles.menuItem}>
+          <View style={styles.menuItemLeft}>
+            <MaterialCommunityIcons
+              name={item.icon}
+              size={24}
+              color={theme.colors.text.primary}
+            />
+            <Text style={[styles.menuItemLabel, { color: theme.colors.text.primary }]}>
+              {item.label}
+            </Text>
+          </View>
+          <Switch
+            value={item.value}
+            onValueChange={item.onToggle}
+            trackColor={{ false: theme.colors.surfaceVariant, true: theme.colors.primary }}
+            thumbColor="#FFF"
+          />
+        </View>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        key={item.id}
+        style={styles.menuItem}
+        onPress={item.onPress}
+      >
+        <View style={styles.menuItemLeft}>
+          <MaterialCommunityIcons
+            name={item.icon}
+            size={24}
+            color={theme.colors.text.primary}
+          />
+          <Text style={[styles.menuItemLabel, { color: theme.colors.text.primary }]}>
+            {item.label}
+          </Text>
+        </View>
+        <View style={styles.menuItemRight}>
+          {item.value && (
+            <Text style={[styles.menuItemValue, { color: theme.colors.text.secondary }]}>
+              {item.value}
+            </Text>
+          )}
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={24}
+            color={theme.colors.text.secondary}
+          />
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <AppBar 
-        title="Profile"
-        onBack={() => navigation?.goBack?.()}
-      />
-      
-      <ScrollView style={styles.content}>
+    <SafeArea edges={['top']}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>
+            Profile
+          </Text>
+        </View>
+
         {/* Profile Header */}
-        <Card style={styles.profileCard}>
-          <View style={styles.profileHeader}>
-            <Avatar.Text 
-              size={60} 
-              label={(userProfile?.first_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
-              style={{ backgroundColor: theme.colors.primary }}
-            />
-            <View style={styles.profileInfo}>
-              <Text variant="headlineSmall" style={styles.profileName}>
-                {userProfile?.first_name 
-                  ? `${userProfile.first_name} ${userProfile.last_name || ''}`
-                  : 'Customer'
-                }
-              </Text>
-              <Text variant="bodyMedium" style={styles.profileEmail}>
-                {user?.email}
-              </Text>
-              <Text variant="bodySmall" style={styles.profileRole}>
-                {userProfile?.role || 'Customer'}
-              </Text>
-            </View>
-          </View>
-        </Card>
+        {renderProfileHeader()}
 
-        {/* Profile Menu */}
-        <Card style={styles.menuCard}>
-          <List.Section>
-            {profileItems.map((item, index) => (
-              <List.Item
-                key={index}
-                title={item.title}
-                left={() => <List.Icon icon={item.icon} />}
-                right={() => <List.Icon icon="chevron-right" />}
-                onPress={item.onPress}
-                style={styles.listItem}
-              />
-            ))}
-          </List.Section>
-        </Card>
-
-        {/* Settings */}
-        <Card style={styles.settingsCard}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            Notification Settings
-          </Text>
-          
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text variant="bodyLarge">Push Notifications</Text>
-              <Text variant="bodySmall" style={styles.settingDescription}>
-                Get updates about your parcels
-              </Text>
-            </View>
-            <Switch
-              value={notifications}
-              onValueChange={setNotifications}
-              color={theme.colors.primary}
-            />
+        {/* Menu Sections */}
+        {menuItems.map((section, index) => (
+          <View key={index} style={styles.menuSection}>
+            <Text style={[styles.sectionTitle, { color: theme.colors.text.secondary }]}>
+              {section.section}
+            </Text>
+            <Card style={styles.menuCard}>
+              {section.items.map((item, itemIndex) => (
+                <React.Fragment key={item.id}>
+                  {renderMenuItem(item)}
+                  {itemIndex < section.items.length - 1 && (
+                    <View
+                      style={[styles.menuDivider, { backgroundColor: theme.colors.outline }]}
+                    />
+                  )}
+                </React.Fragment>
+              ))}
+            </Card>
           </View>
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingInfo}>
-              <Text variant="bodyLarge">Email Updates</Text>
-              <Text variant="bodySmall" style={styles.settingDescription}>
-                Receive delivery confirmations via email
-              </Text>
-            </View>
-            <Switch
-              value={emailUpdates}
-              onValueChange={setEmailUpdates}
-              color={theme.colors.primary}
-            />
-          </View>
-        </Card>
-
-        {/* App Info */}
-        <Card style={styles.infoCard}>
-          <Text variant="titleMedium" style={styles.sectionTitle}>
-            App Information
-          </Text>
-          
-          <View style={styles.infoItem}>
-            <Text variant="bodyMedium">Version</Text>
-            <Text variant="bodyMedium">1.0.0</Text>
-          </View>
-          
-          <View style={styles.infoItem}>
-            <Text variant="bodyMedium">Build</Text>
-            <Text variant="bodyMedium">001</Text>
-          </View>
-        </Card>
+        ))}
 
         {/* Sign Out Button */}
-        <Button
-          mode="contained"
+        <TouchableOpacity
+          style={[styles.signOutButton, { backgroundColor: theme.colors.errorContainer }]}
           onPress={handleSignOut}
-          style={[styles.signOutButton, { backgroundColor: theme.colors.error }]}
-          labelStyle={{ color: 'white' }}
         >
-          Sign Out
-        </Button>
+          <MaterialCommunityIcons
+            name="logout"
+            size={24}
+            color={theme.colors.error}
+          />
+          <Text style={[styles.signOutText, { color: theme.colors.error }]}>
+            Sign Out
+          </Text>
+        </TouchableOpacity>
+
+        {/* App Version */}
+        <Text style={[styles.versionText, { color: theme.colors.text.secondary }]}>
+          Adera PTP v1.0.0
+        </Text>
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
-  content: {
-    flex: 1,
-    padding: 16,
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
   },
   profileCard: {
+    marginHorizontal: 20,
+    marginBottom: 24,
     padding: 20,
-    marginBottom: 16,
+    alignItems: 'center',
   },
   profileHeader: {
-    flexDirection: 'row',
+    position: 'relative',
+    marginBottom: 16,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  profileInfo: {
-    marginLeft: 16,
-    flex: 1,
+  avatarText: {
+    fontSize: 36,
+    fontWeight: '700',
   },
-  profileName: {
-    fontWeight: 'bold',
+  editButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: '700',
     marginBottom: 4,
   },
-  profileEmail: {
-    color: '#666',
-    marginBottom: 2,
+  userEmail: {
+    fontSize: 14,
+    marginBottom: 20,
   },
-  profileRole: {
-    color: '#666',
-    textTransform: 'capitalize',
+  userStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
   },
-  menuCard: {
-    marginBottom: 16,
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
   },
-  listItem: {
-    paddingVertical: 8,
+  statDivider: {
+    width: 1,
+    height: 40,
   },
-  settingsCard: {
-    padding: 20,
-    marginBottom: 16,
+  statValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  statLabel: {
+    fontSize: 12,
+  },
+  menuSection: {
+    marginBottom: 24,
+    paddingHorizontal: 20,
   },
   sectionTitle: {
-    fontWeight: '500',
-    marginBottom: 16,
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 12,
+    textTransform: 'uppercase',
   },
-  settingItem: {
+  menuCard: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  menuItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
-  settingInfo: {
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     flex: 1,
   },
-  settingDescription: {
-    color: '#666',
-    marginTop: 2,
+  menuItemLabel: {
+    fontSize: 16,
+    fontWeight: '500',
   },
-  infoCard: {
-    padding: 20,
-    marginBottom: 24,
-  },
-  infoItem: {
+  menuItemRight: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
+    alignItems: 'center',
+    gap: 8,
+  },
+  menuItemValue: {
+    fontSize: 14,
+  },
+  menuDivider: {
+    height: 1,
+    marginLeft: 52,
   },
   signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    gap: 12,
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  versionText: {
+    fontSize: 12,
+    textAlign: 'center',
     marginBottom: 20,
-    paddingVertical: 8,
   },
 });
 

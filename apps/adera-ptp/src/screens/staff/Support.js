@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { AppBar, Card } from '@adera/ui';
+import { AppBar, Card, SafeArea } from '@adera/ui';
 
 const Support = () => {
   const tickets = [
@@ -11,7 +11,7 @@ const Support = () => {
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar title="Support Tickets" />
       
       <ScrollView style={styles.content}>
@@ -34,7 +34,7 @@ const Support = () => {
           </Card>
         ))}
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 

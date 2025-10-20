@@ -1,14 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import CustomerDashboard from '../screens/Customer/CustomerDashboard.minimal';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import CustomerDashboard from '../screens/customer/CustomerDashboard';
 
 const CustomerNavigatorSimple = () => {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <CustomerDashboard />
       </View>
-      
+
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <Text style={styles.navText}>Dashboard</Text>
@@ -26,7 +27,7 @@ const CustomerNavigatorSimple = () => {
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

@@ -55,10 +55,10 @@ const GuestNavigator = ({ onBackToAuth }) => {
             >
               <View style={styles.locationInfo}>
                 <View style={styles.locationHeader}>
-                  <Ionicons 
-                    name={location.type === 'Shop Partner' ? 'storefront' : 'location'} 
-                    size={24} 
-                    color={theme.colors.primary} 
+                  <Ionicons
+                    name={location.type === 'Shop Partner' ? 'storefront' : 'location-outline'}
+                    size={24}
+                    color={theme.colors.primary}
                     style={styles.locationIcon}
                   />
                   <View style={styles.locationDetails}>
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
-    paddingBottom: 60, // AGGRESSIVE bottom padding to prevent overlap
+    paddingBottom: 16, // AGGRESSIVE bottom padding to prevent overlap
   },
   contentHeader: {
     marginBottom: 24,

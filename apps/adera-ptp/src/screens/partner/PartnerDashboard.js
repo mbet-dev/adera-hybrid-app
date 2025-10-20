@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { Text, FAB } from 'react-native-paper';
-import { AppBar, Card, StatusBadge, useTheme } from '@adera/ui';
+import { AppBar, Card, SafeArea, StatusBadge, useTheme } from '@adera/ui';
 import { useAuth } from '@adera/auth';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -55,7 +55,7 @@ const PartnerDashboard = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar 
         title="Partner Dashboard"
         elevated={false}
@@ -92,7 +92,7 @@ const PartnerDashboard = ({ navigation }) => {
         <View style={styles.statsContainer}>
           <View style={styles.statsRow}>
             <StatCard
-              icon="package-variant-closed"
+              icon="cube-outline"
               label="Pending Pickups"
               value={stats.pendingPickups}
               color="#FF9800"
@@ -106,7 +106,7 @@ const PartnerDashboard = ({ navigation }) => {
           </View>
           <View style={styles.statsRow}>
             <StatCard
-              icon="truck-delivery"
+              icon="car-outline"
               label="Total Parcels"
               value={stats.totalParcels}
               color={theme.colors.primary}
@@ -128,13 +128,13 @@ const PartnerDashboard = ({ navigation }) => {
           
           <View style={styles.quickActions}>
             <QuickActionCard
-              icon="qr-code-scanner"
+              icon="qr-code"
               title="Scan QR Code"
               description="Process parcel pickup/dropoff"
               onPress={openScanner}
             />
             <QuickActionCard
-              icon="package-variant"
+              icon="cube"
               title="View Parcels"
               description="Manage pending parcels"
               onPress={() => navigation?.navigate?.('parcels')}
@@ -155,10 +155,10 @@ const PartnerDashboard = ({ navigation }) => {
           ) : (
             <Card style={styles.emptyCard}>
               <View style={styles.emptyContent}>
-                <Ionicons 
-                  name="time-outline" 
-                  size={48} 
-                  color={theme.colors.gray[400]} 
+                <Ionicons
+                  name="time-outline"
+                  size={48}
+                  color={theme.colors.gray[400]}
                 />
                 <Text 
                   variant="bodyLarge" 
@@ -180,12 +180,12 @@ const PartnerDashboard = ({ navigation }) => {
 
       {/* Floating Action Button */}
       <FAB
-        icon="qr-code-scanner"
+        icon="qr-code"
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         onPress={openScanner}
         label="Scan QR"
       />
-    </View>
+    </SafeArea>
   );
 };
 

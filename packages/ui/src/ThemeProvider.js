@@ -1,5 +1,6 @@
 import React, { createContext, useContext } from 'react';
 import { useColorScheme } from 'react-native';
+import { Provider as PaperProvider, DefaultTheme, DarkTheme } from 'react-native-paper';
 import colors from './colors';
 import typography from './typography';
 
@@ -71,10 +72,21 @@ export const ThemeProvider = ({ children, forceLightMode = true }) => {
       },
     },
   };
+
+  const paperTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+      ...palette,
+    },
+    roundness: theme.borderRadius.md,
+  };
   
   return (
     <ThemeContext.Provider value={theme}>
-      {children}
+      <PaperProvider theme={paperTheme}>
+        {children}
+      </PaperProvider>
     </ThemeContext.Provider>
   );
 };

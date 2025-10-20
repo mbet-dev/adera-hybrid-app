@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text, Avatar } from 'react-native-paper';
-import { AppBar, Card, useTheme } from '@adera/ui';
+import { AppBar, Card, SafeArea, useTheme } from '@adera/ui';
 import { useAuth } from '@adera/auth';
 
 const DriverProfile = ({ navigation }) => {
@@ -9,7 +9,7 @@ const DriverProfile = ({ navigation }) => {
   const { userProfile } = useAuth();
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar title="Driver Profile" />
       
       <ScrollView style={styles.content}>
@@ -42,7 +42,7 @@ const DriverProfile = ({ navigation }) => {
           <Text variant="bodyMedium">Member Since: January 2024</Text>
         </Card>
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 

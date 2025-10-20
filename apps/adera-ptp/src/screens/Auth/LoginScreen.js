@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth, useAuthErrors } from '@adera/auth';
 import { Button, TextInput, useTheme } from '@adera/ui';
 
@@ -56,7 +56,6 @@ const LoginScreen = ({ navigation }) => {
     setErrors({});
     setErrorMessage('');
     setShowResendLink(false);
-    setShowRefreshLink(false);
 
     // Validate form
     if (!validateForm()) {
@@ -110,8 +109,8 @@ const LoginScreen = ({ navigation }) => {
           {/* Header */}
           <View style={styles.header}>
             <View style={[styles.logoContainer, { backgroundColor: theme.colors.primaryContainer }]}>
-              <MaterialCommunityIcons
-                name="package-variant-closed"
+              <Ionicons
+                name="cube"
                 size={48}
                 color={theme.colors.primary}
               />
@@ -170,15 +169,7 @@ const LoginScreen = ({ navigation }) => {
               autoCapitalize="none"
               autoComplete="email"
               textContentType="emailAddress"
-              left={
-                <MaterialCommunityIcons
-                  name="email-outline"
-                  size={20}
-                  color={theme.colors.text.secondary}
-                  style={styles.inputIcon}
-                />
-              }
-            />
+                          />
 
             <TextInput
               label="Password"
@@ -192,27 +183,7 @@ const LoginScreen = ({ navigation }) => {
               autoCapitalize="none"
               autoComplete="password"
               textContentType="password"
-              left={
-                <MaterialCommunityIcons
-                  name="lock-outline"
-                  size={20}
-                  color={theme.colors.text.secondary}
-                  style={styles.inputIcon}
-                />
-              }
-              right={
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <MaterialCommunityIcons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={theme.colors.text.secondary}
-                  />
-                </TouchableOpacity>
-              }
-            />
+                                        />
 
             <TouchableOpacity
               onPress={handleForgotPassword}
@@ -254,7 +225,7 @@ const LoginScreen = ({ navigation }) => {
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: theme.colors.text.secondary }]}>
-              Don't have an account?{' '}
+              Don't have an account? 
             </Text>
             <TouchableOpacity onPress={handleSignUp}>
               <Text style={[styles.footerLink, { color: theme.colors.primary }]}>

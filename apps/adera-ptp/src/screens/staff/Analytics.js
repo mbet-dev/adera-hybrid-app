@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { AppBar, Card, useTheme } from '@adera/ui';
+import { AppBar, Card, SafeArea, useTheme } from '@adera/ui';
 
 const Analytics = () => {
   const theme = useTheme();
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar title="Analytics" />
       
       <ScrollView style={styles.content}>
@@ -33,7 +33,7 @@ const Analytics = () => {
           </View>
         </Card>
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 

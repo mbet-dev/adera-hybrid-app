@@ -4,8 +4,8 @@ import { AuthState, UserRole } from './types';
 
 export const AuthContext = createContext();
 
-// Demo mode disabled in rewritten auth logic
-const isDemoMode = false;
+// Demo mode enabled for development (Supabase not configured yet)
+const isDemoMode = true;
 
 const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
@@ -51,6 +51,9 @@ const AuthProvider = ({ children }) => {
         if (session?.user) {
           // Mark authenticated immediately; profile may follow shortly
           setAuthState(AuthState.AUTHENTICATED);
+          // Pass user metadata if available from the session object, useful for post-signup flow
+          await ensureUserProfileExists(session.user, session.user.user_metadata);
+          await touchLastLogin(session.user.id);
           fetchUserProfile(session.user.id);
         } else {
           setUserProfile(null);
@@ -61,6 +64,53 @@ const AuthProvider = ({ children }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const ensureUserProfileExists = async (authUser, metadata = {}) => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', authUser.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.warn('ensureUserProfileExists: select error', error);
+        return;
+      }
+
+      if (!data) {
+        // User profile doesn't exist, create it with metadata from signup
+        const profileData = {
+          id: authUser.id,
+          email: authUser.email,
+          is_verified: !!authUser.email_confirmed_at,
+          is_active: true,
+          first_name: metadata?.first_name,
+          last_name: metadata?.last_name,
+          phone: metadata?.phone,
+          role: metadata?.role || 'customer',
+        };
+        
+        const { error: insertError } = await supabase.from('users').insert(profileData);
+        if (insertError) {
+          console.warn('ensureUserProfileExists: insert error', insertError);
+        }
+      }
+    } catch (e) {
+      console.warn('ensureUserProfileExists: unexpected error', e);
+    }
+  };
+
+  const touchLastLogin = async (userId) => {
+    try {
+      await supabase
+        .from('users')
+        .update({ last_login_at: new Date().toISOString() })
+        .eq('id', userId);
+    } catch (e) {
+      // Non-fatal
+    }
+  };
 
   const fetchUserProfile = async (userId, retryCount = 0) => {
     if (isDemoMode) {
@@ -150,6 +200,15 @@ const AuthProvider = ({ children }) => {
       }
       throw error;
     }
+
+    // Best-effort: ensure profile exists and update last login
+    if (data?.user) {
+      // Pass metadata from the user object itself upon sign-in
+      await ensureUserProfileExists(data.user, data.user.user_metadata);
+      await touchLastLogin(data.user.id);
+      // Fetch profile to populate role for routing ASAP
+      fetchUserProfile(data.user.id);
+    }
     return data;
   };
 
@@ -189,6 +248,12 @@ const AuthProvider = ({ children }) => {
     });
 
     if (error) throw error;
+
+    // After successful signup, immediately try to create the user profile as a fallback
+    if (data.user) {
+      await ensureUserProfileExists(data.user, userData);
+    }
+    
     return data;
   };
 

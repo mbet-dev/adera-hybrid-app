@@ -46,11 +46,7 @@ function AppContent() {
   }
 
   // Show authentication navigator
-  return (
-    <NavigationContainer>
-      <AuthNavigator />
-    </NavigationContainer>
-  );
+  return <AuthNavigator />;
 }
 
 // Root App with Providers
@@ -59,10 +55,12 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <View style={styles.container}>
-            <StatusBar style="dark" backgroundColor="#FFFFFF" />
-            <AppContent />
-          </View>
+          <NavigationContainer>
+            <View style={styles.container}>
+              <StatusBar style="dark" backgroundColor="#FFFFFF" />
+              <AppContent />
+            </View>
+          </NavigationContainer>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

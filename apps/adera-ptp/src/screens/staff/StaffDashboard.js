@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { AppBar, Card, useTheme } from '@adera/ui';
+import { AppBar, Card, SafeArea, useTheme } from '@adera/ui';
 import { useAuth } from '@adera/auth';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -16,7 +16,7 @@ const StaffDashboard = ({ navigation }) => {
   });
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar 
         title="Staff Dashboard"
         style={{ backgroundColor: theme.colors.primary }}
@@ -34,8 +34,8 @@ const StaffDashboard = ({ navigation }) => {
 
         <View style={styles.statsContainer}>
           <View style={styles.statsRow}>
-            <StatCard icon="package-variant" label="Total Parcels" value={stats.totalParcels} color={theme.colors.primary} />
-            <StatCard icon="truck-delivery" label="In Transit" value={stats.inTransit} color="#FF9800" />
+            <StatCard icon="cube-outline" label="Total Parcels" value={stats.totalParcels} color={theme.colors.primary} />
+            <StatCard icon="truck" label="In Transit" value={stats.inTransit} color="#FF9800" />
           </View>
           <View style={styles.statsRow}>
             <StatCard icon="alert-circle" label="Issues" value={stats.issues} color="#F44336" />
@@ -50,7 +50,7 @@ const StaffDashboard = ({ navigation }) => {
           <Text variant="bodyMedium">• 1 payment dispute pending</Text>
         </Card>
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 

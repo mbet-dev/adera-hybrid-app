@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { AppBar, Card, StatusBadge } from '@adera/ui';
+import { AppBar, Card, SafeArea, StatusBadge } from '@adera/ui';
 
 const TaskList = ({ navigation }) => {
   const tasks = [
@@ -11,7 +11,7 @@ const TaskList = ({ navigation }) => {
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar title="Task List" />
       
       <ScrollView style={styles.content}>
@@ -31,7 +31,7 @@ const TaskList = ({ navigation }) => {
           </Card>
         ))}
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 

@@ -31,7 +31,7 @@ const ROLE_OPTIONS = [
     value: UserRole.DRIVER,
     label: 'Driver',
     description: 'Deliver parcels',
-    icon: 'truck-delivery',
+    icon: 'car',
   },
 ];
 

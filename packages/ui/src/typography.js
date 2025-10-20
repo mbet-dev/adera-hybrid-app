@@ -76,6 +76,11 @@ export const typography = {
       fontWeight: '400',
       lineHeight: 1.5,
     },
+    bodyLarge: {
+      fontSize: 18,
+      fontWeight: '400',
+      lineHeight: 1.5,
+    },
     caption: {
       fontSize: 14,
       fontWeight: '400',

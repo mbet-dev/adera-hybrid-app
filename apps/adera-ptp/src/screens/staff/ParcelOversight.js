@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { AppBar, Card, StatusBadge } from '@adera/ui';
+import { AppBar, Card, SafeArea, StatusBadge, useTheme } from '@adera/ui';
 
 const ParcelOversight = () => {
   const problemParcels = [
@@ -11,7 +11,7 @@ const ParcelOversight = () => {
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar title="Parcel Oversight" />
       
       <ScrollView style={styles.content}>
@@ -28,7 +28,7 @@ const ParcelOversight = () => {
           </Card>
         ))}
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 

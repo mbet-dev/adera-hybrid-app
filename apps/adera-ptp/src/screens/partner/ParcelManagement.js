@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { AppBar, Card, StatusBadge, useTheme } from '@adera/ui';
+import { AppBar, Card, SafeArea, StatusBadge, useTheme } from '@adera/ui';
 
 const ParcelManagement = ({ navigation }) => {
   const theme = useTheme();
@@ -12,7 +12,7 @@ const ParcelManagement = ({ navigation }) => {
   ];
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar title="Parcel Management" />
       
       <ScrollView style={styles.content}>
@@ -33,7 +33,7 @@ const ParcelManagement = ({ navigation }) => {
           </Card>
         ))}
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 

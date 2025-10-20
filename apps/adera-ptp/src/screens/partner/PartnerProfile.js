@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text, Avatar } from 'react-native-paper';
-import { AppBar, Card, useTheme } from '@adera/ui';
+import { AppBar, Card, SafeArea, useTheme } from '@adera/ui';
 import { useAuth } from '@adera/auth';
 
 const PartnerProfile = ({ navigation }) => {
@@ -9,7 +9,7 @@ const PartnerProfile = ({ navigation }) => {
   const { userProfile, signOut } = useAuth();
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar title="Partner Profile" />
       
       <ScrollView style={styles.content}>
@@ -37,7 +37,7 @@ const PartnerProfile = ({ navigation }) => {
           <Text variant="bodyMedium">Operating Hours: 8:00 AM - 8:00 PM</Text>
         </Card>
       </ScrollView>
-    </View>
+    </SafeArea>
   );
 };
 

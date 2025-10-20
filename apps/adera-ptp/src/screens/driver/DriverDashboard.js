@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text, FAB } from 'react-native-paper';
-import { AppBar, Card, StatusBadge, useTheme } from '@adera/ui';
+import { AppBar, Card, SafeArea, StatusBadge, useTheme } from '@adera/ui';
 import { useAuth } from '@adera/auth';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -16,7 +16,7 @@ const DriverDashboard = ({ navigation }) => {
   });
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar 
         title="Driver Dashboard"
         style={{ backgroundColor: theme.colors.primary }}
@@ -34,11 +34,11 @@ const DriverDashboard = ({ navigation }) => {
 
         <View style={styles.statsContainer}>
           <View style={styles.statsRow}>
-            <StatCard icon="truck-delivery" label="Active" value={stats.activeDeliveries} color="#FF9800" />
+            <StatCard icon="truck" label="Active" value={stats.activeDeliveries} color="#FF9800" />
             <StatCard icon="cash" label="Today's Earnings" value={`${stats.todayEarnings} ETB`} color="#4CAF50" />
           </View>
           <View style={styles.statsRow}>
-            <StatCard icon="checkmark-circle" label="Completed" value={stats.completedToday} color={theme.colors.primary} />
+            <StatCard icon="checkmark-circle-outline" label="Completed" value={stats.completedToday} color={theme.colors.primary} />
             <StatCard icon="star" label="Rating" value={`${stats.rating} ⭐`} color="#9C27B0" />
           </View>
         </View>
@@ -58,7 +58,7 @@ const DriverDashboard = ({ navigation }) => {
         onPress={() => navigation?.navigate?.('map')}
         label="View Route"
       />
-    </View>
+    </SafeArea>
   );
 };
 

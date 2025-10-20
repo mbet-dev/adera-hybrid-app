@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { AppBar, Card, useTheme } from '@adera/ui';
+import { AppBar, Card, SafeArea, useTheme } from '@adera/ui';
 import { Ionicons } from '@expo/vector-icons';
 
 const RouteMap = ({ navigation }) => {
   const theme = useTheme();
 
   return (
-    <View style={styles.container}>
+    <SafeArea style={styles.container} withBottomNav={true}>
       <AppBar title="Route Map" />
       
       <View style={styles.content}>
@@ -32,7 +32,7 @@ const RouteMap = ({ navigation }) => {
           </Text>
         </Card>
       </View>
-    </View>
+    </SafeArea>
   );
 };
 
