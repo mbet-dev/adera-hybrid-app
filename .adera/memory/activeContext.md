@@ -1,32 +1,32 @@
 # Active Context - Adera Hybrid App Development
 
-**Date**: 2025-01-11  
-**Status**: Backend Foundation Complete - Ready for Supabase Setup  
+**Date**: 2025-10-21  
+**Status**: Customer app stabilized — preparing multi-app routing overhaul  
 **Current Branch**: dev  
-**Active Focus**: Database infrastructure and environment configuration
+**Active Focus**: UI polish (parcel history, theming) + documentation ahead of repo hardening
 
 ## Current Work Context
 
 ### Primary Focus
-- **Backend Infrastructure**: Complete database schema with business logic functions
-- **Environment Configuration**: Comprehensive .env templates for all integrations
-- **QR Security**: HMAC-SHA256 hash generation and verification
-- **Supabase Setup**: Ready for project creation and migration
+- **PTP Experience Hardening**: Resolve residual blank screens and layout gaps on customer flows
+- **Theme Preferences**: Ship persisted light/dark/system toggle spanning web & native
+- **Documentation & Changelog**: Record resolutions in `.adera/memory/` and `.adera/changelogs/`
 
 ### Recent Progress
-- ✅ Created 13 database functions for business logic
-- ✅ Implemented HMAC-SHA256 QR code security system
-- ✅ Built comprehensive .env.example templates (65+ variables)
-- ✅ Enhanced setup documentation with step-by-step guide
-- ✅ Dynamic pricing and commission calculations
-- ✅ Auto-expire and notification triggers
+- ✅ `packages/ui/src/BottomNavigation.js` patched to allocate scene height, lifting blank customer screens
+- ✅ Fixed web blank screen regression (MD3LightTheme/MD3DarkTheme imports)
+- ✅ Created `packages/preferences/` with theme, language, and biometric persistence
+- ✅ Integrated theme mode toggle in Profile screen (System/Light/Dark)
+- ✅ Added biometric login button to LoginScreen with hardware detection
+- ✅ Restored onboarding flow on app launch and after sign-out
+- ✅ Enhanced parcel history card layout to prevent overflow
 
 ### Immediate Next Steps
-1. **Create Supabase Project**: Set up production database instance
-2. **Run Migrations**: Execute schema.sql and functions.sql
-3. **Configure Environment**: Update .env.local with real credentials
-4. **Create Storage Buckets**: Set up avatars, products, parcels, shops
-5. **Test Authentication**: Verify login/signup flows work
+1. **Install Dependencies**: Run `pnpm install` to sync new packages (@adera/preferences, biometric libs)
+2. **Verify on Web & Native**: Test theme persistence, biometric toggle, onboarding flow
+3. **Testing & Push**: Run lint/tests, then push to `dev`, `main`, and `Rsv/v4`
+4. **Guest Mode Navigation**: Implement shop browsing without authentication
+5. **Multi-App Router**: Refactor root to redirect PTP vs Shop based on user choice/role
 
 ## Active Decisions & Considerations
 
@@ -38,13 +38,13 @@
 
 ### Architecture Patterns
 - **Monorepo**: Turborepo with pnpm workspaces
-- **Shared Packages**: Clean separation between UI, auth, payments, maps, utils
-- **Role-Based Access**: Implemented at app level with shared authentication
+- **Shared Packages**: UI/auth ready; upcoming preferences module for cross-app settings
+- **Role-Based Access**: Current focus on customer; next milestone includes unified router for PTP + Shop
 
 ### UX Decisions
 - **Onboarding Flow**: 4-slide introduction with Ethiopian market imagery
-- **App Selection**: Clear separation between PTP and Shop experiences
-- **Guest Mode**: Allowed for browsing, authentication required for actions
+- **App Selection**: Selector to be reinstated post sign-out as part of session reset improvements
+- **Guest Mode**: Browse-first remains; upcoming work ensures role-based redirects from root app
 
 ## Next Steps
 

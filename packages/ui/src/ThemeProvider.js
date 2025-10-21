@@ -1,6 +1,6 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
-import { Provider as PaperProvider, DefaultTheme, DarkTheme } from 'react-native-paper';
+import { MD3LightTheme, MD3DarkTheme, Provider as PaperProvider } from 'react-native-paper';
 import colors from './colors';
 import typography from './typography';
 
@@ -13,13 +13,19 @@ export const useTheme = () => {
   return context;
 };
 
-export const ThemeProvider = ({ children, forceLightMode = true }) => {
-  const colorScheme = useColorScheme();
-  // For now, force light mode unless explicitly disabled
-  const isDark = forceLightMode ? false : colorScheme === 'dark';
+export const ThemeProvider = ({ children, forceLightMode = false, initialMode = 'system', onModeChange }) => {
+  const systemScheme = useColorScheme();
+  const [mode, setMode] = useState(initialMode);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
+
+  const resolvedMode = forceLightMode ? 'light' : mode;
+  const isDark = resolvedMode === 'dark' || (resolvedMode === 'system' && systemScheme === 'dark');
   const palette = isDark ? colors.dark : colors.light;
 
-  const theme = {
+  const theme = useMemo(() => ({
     colors: {
       ...palette,
       white: palette.white,
@@ -71,19 +77,32 @@ export const ThemeProvider = ({ children, forceLightMode = true }) => {
         elevation: 8,
       },
     },
-  };
+    mode: resolvedMode,
+  }), [palette, resolvedMode]);
 
-  const paperTheme = {
-    ...(isDark ? DarkTheme : DefaultTheme),
+  const paperTheme = useMemo(() => ({
+    ...(isDark ? MD3DarkTheme : MD3LightTheme),
     colors: {
-      ...(isDark ? DarkTheme.colors : DefaultTheme.colors),
+      ...(isDark ? MD3DarkTheme.colors : MD3LightTheme.colors),
       ...palette,
     },
     roundness: theme.borderRadius.md,
-  };
-  
+  }), [isDark, palette, theme.borderRadius.md]);
+
+  const updateMode = useCallback((nextMode) => {
+    setMode(nextMode);
+    if (onModeChange) {
+      onModeChange(nextMode);
+    }
+  }, [onModeChange]);
+
+  const contextValue = useMemo(() => ({
+    ...theme,
+    setThemeMode: updateMode,
+  }), [theme, updateMode]);
+
   return (
-    <ThemeContext.Provider value={theme}>
+    <ThemeContext.Provider value={contextValue}>
       <PaperProvider theme={paperTheme}>
         {children}
       </PaperProvider>

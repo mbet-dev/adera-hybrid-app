@@ -12,7 +12,7 @@ const PartnerNavigator = () => {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'dashboard', title: 'Dashboard', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'scan', title: 'Scan QR', focusedIcon: 'qrcode', unfocusedIcon: 'qrcode' },
+    { key: 'scan', title: 'Scan QR', focusedIcon: 'qrcode-scan', unfocusedIcon: 'qrcode-scan' },
     { key: 'parcels', title: 'Parcels', focusedIcon: 'package-variant', unfocusedIcon: 'package-variant-closed' },
     { key: 'profile', title: 'Profile', focusedIcon: 'account-circle', unfocusedIcon: 'account-circle-outline' },
   ]);

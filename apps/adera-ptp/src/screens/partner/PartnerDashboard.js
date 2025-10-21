@@ -61,7 +61,6 @@ const PartnerDashboard = ({ navigation }) => {
         elevated={false}
         style={{ backgroundColor: theme.colors.primary }}
       />
-      
       <ScrollView
         style={styles.content}
         refreshControl={
@@ -125,7 +124,6 @@ const PartnerDashboard = ({ navigation }) => {
           <Text variant="titleLarge" style={styles.sectionTitle}>
             Quick Actions
           </Text>
-          
           <View style={styles.quickActions}>
             <QuickActionCard
               icon="qr-code"

@@ -194,7 +194,6 @@ const CreateParcel = ({ navigation }) => {
       <Text style={[styles.stepTitle, { color: theme.colors.text.primary }]}>
         Recipient Details
       </Text>
-      
       <TextInput
         label="Recipient Name"
         value={recipientName}
@@ -203,7 +202,6 @@ const CreateParcel = ({ navigation }) => {
         autoCapitalize="words"
         leftIcon="account"
       />
-      
       <TextInput
         label="Phone Number"
         value={recipientPhone}
@@ -212,7 +210,6 @@ const CreateParcel = ({ navigation }) => {
         keyboardType="phone-pad"
         leftIcon="phone"
       />
-      
       <TextInput
         label="Description (Optional)"
         value={description}
@@ -274,7 +271,6 @@ const CreateParcel = ({ navigation }) => {
           </TouchableOpacity>
         ))}
       </View>
-
       <Text style={[styles.sectionLabel, { color: theme.colors.text.secondary, marginTop: 24 }]}>
         Package Type
       </Text>
@@ -377,7 +373,6 @@ const CreateParcel = ({ navigation }) => {
           />
         </TouchableOpacity>
       </Card>
-
       <Text style={[styles.sectionLabel, { color: theme.colors.text.secondary, marginTop: 16 }]}>
         Pick-up Partner
       </Text>

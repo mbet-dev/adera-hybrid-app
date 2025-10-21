@@ -11,14 +11,17 @@ import {
 import { SafeArea, Card, useTheme } from '@adera/ui';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@adera/auth';
+import { usePreferences } from '@adera/preferences';
 
 const Profile = ({ navigation }) => {
   const theme = useTheme();
   const { signOut } = useAuth();
+  const { themeMode, setThemeMode, language, setLanguage, biometricEnabled, enableBiometrics, disableBiometrics } = usePreferences();
   const [notifications, setNotifications] = useState(true);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
-  const [language, setLanguage] = useState('en');
+
+  console.log('[Profile] Render - themeMode:', themeMode, 'language:', language, 'biometric:', biometricEnabled);
 
   const user = {
     name: 'Alex Mengistu',
@@ -50,22 +53,90 @@ const Profile = ({ navigation }) => {
     );
   };
 
+  const handleThemeModeChange = () => {
+    console.log('[Profile] handleThemeModeChange called, current mode:', themeMode);
+    Alert.alert(
+      'Select Theme',
+      'Choose your preferred theme mode',
+      [
+        {
+          text: 'System Default',
+          onPress: () => {
+            console.log('[Profile] User selected System theme');
+            setThemeMode('system');
+          },
+        },
+        {
+          text: 'Light Mode',
+          onPress: () => {
+            console.log('[Profile] User selected Light theme');
+            setThemeMode('light');
+          },
+        },
+        {
+          text: 'Dark Mode',
+          onPress: () => {
+            console.log('[Profile] User selected Dark theme');
+            setThemeMode('dark');
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
   const handleLanguageChange = () => {
+    console.log('[Profile] handleLanguageChange called, current language:', language);
     Alert.alert(
       'Select Language',
       'Choose your preferred language',
       [
         {
           text: 'English',
-          onPress: () => setLanguage('en'),
+          onPress: () => {
+            console.log('[Profile] User selected English');
+            setLanguage('en');
+          },
         },
         {
           text: 'አማርኛ (Amharic)',
-          onPress: () => setLanguage('am'),
+          onPress: () => {
+            console.log('[Profile] User selected Amharic');
+            setLanguage('am');
+          },
         },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
+  };
+
+  const handleBiometricToggle = async (enabled) => {
+    console.log('[Profile] handleBiometricToggle called with enabled:', enabled);
+    if (enabled) {
+      const result = await enableBiometrics();
+      console.log('[Profile] enableBiometrics result:', result);
+      if (!result.success) {
+        let message = 'Failed to enable biometrics';
+        let title = 'Biometric Setup';
+        
+        if (result.error === 'web_not_supported') {
+          title = 'Not Available on Web';
+          message = 'Biometric authentication is only available on iOS and Android. Please use the native mobile app to enable this feature.';
+        } else if (result.error === 'hardware_unavailable') {
+          message = 'This device does not have biometric hardware (fingerprint or face recognition).';
+        } else if (result.error === 'not_enrolled') {
+          message = 'No biometrics are enrolled on this device. Please set up fingerprint or face unlock in your device settings first.';
+        } else if (result.error === 'authentication_failed') {
+          message = 'Biometric authentication was not successful. Please try again.';
+        }
+        
+        Alert.alert(title, message);
+      } else {
+        Alert.alert('Success', 'Biometric login has been enabled successfully!');
+      }
+    } else {
+      await disableBiometrics();
+    }
   };
 
   const menuItems = [
@@ -96,6 +167,28 @@ const Profile = ({ navigation }) => {
       section: 'Preferences',
       items: [
         {
+          id: 'theme',
+          label: 'Theme Mode',
+          icon: 'theme-light-dark',
+          value: themeMode === 'system' ? 'System Default' : themeMode === 'light' ? 'Light Mode' : 'Dark Mode',
+          onPress: handleThemeModeChange,
+        },
+        {
+          id: 'language',
+          label: 'Language',
+          icon: 'translate',
+          value: language === 'en' ? 'English' : 'አማርኛ',
+          onPress: handleLanguageChange,
+        },
+        {
+          id: 'biometric',
+          label: 'Biometric Login',
+          icon: 'fingerprint',
+          type: 'switch',
+          value: biometricEnabled,
+          onToggle: handleBiometricToggle,
+        },
+        {
           id: 'notifications',
           label: 'Push Notifications',
           icon: 'bell',
@@ -118,13 +211,6 @@ const Profile = ({ navigation }) => {
           type: 'switch',
           value: smsNotifications,
           onToggle: setSmsNotifications,
-        },
-        {
-          id: 'language',
-          label: 'Language',
-          icon: 'translate',
-          value: language === 'en' ? 'English' : 'አማርኛ',
-          onPress: handleLanguageChange,
         },
       ],
     },
@@ -288,10 +374,8 @@ const Profile = ({ navigation }) => {
             Profile
           </Text>
         </View>
-
         {/* Profile Header */}
         {renderProfileHeader()}
-
         {/* Menu Sections */}
         {menuItems.map((section, index) => (
           <View key={index} style={styles.menuSection}>
@@ -312,7 +396,6 @@ const Profile = ({ navigation }) => {
             </Card>
           </View>
         ))}
-
         {/* Sign Out Button */}
         <TouchableOpacity
           style={[styles.signOutButton, { backgroundColor: theme.colors.errorContainer }]}
@@ -327,7 +410,6 @@ const Profile = ({ navigation }) => {
             Sign Out
           </Text>
         </TouchableOpacity>
-
         {/* App Version */}
         <Text style={[styles.versionText, { color: theme.colors.text.secondary }]}>
           Adera PTP v1.0.0

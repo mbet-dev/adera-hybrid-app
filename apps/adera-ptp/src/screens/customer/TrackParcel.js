@@ -296,7 +296,6 @@ const TrackParcel = () => {
                     </Text>
                   )}
                 </View>
-
                 <View style={styles.timelineCenter}>
                   <View
                     style={[
@@ -330,7 +329,6 @@ const TrackParcel = () => {
                     />
                   )}
                 </View>
-
                 <View style={styles.timelineContent}>
                   <Text
                     style={[

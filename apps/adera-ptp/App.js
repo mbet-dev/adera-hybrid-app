@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
+import * as Linking from 'expo-linking';
 import { ThemeProvider, OnboardingScreen, AppSelectorScreen, LoadingScreen } from '@adera/ui';
 import { AuthProvider, useAuth } from '@adera/auth';
+import { PreferencesProvider, usePreferences } from '@adera/preferences';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 
 // Main App Component
 function AppContent() {
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showAppSelector, setShowAppSelector] = useState(false);
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, role } = useAuth();
+
+  console.log('[AppContent] Render:', { isAuthenticated, isLoading, role });
 
   const handleOnboardingComplete = () => {
-    setShowOnboarding(false);
+    setHasCompletedOnboarding(true);
     setShowAppSelector(true);
   };
 
@@ -25,22 +29,29 @@ function AppContent() {
     setShowAppSelector(false);
   };
 
+  useEffect(() => {
+    if (!isAuthenticated && !isLoading) {
+      setHasCompletedOnboarding(false);
+      setShowAppSelector(false);
+    }
+  }, [isAuthenticated, isLoading]);
+
   // Show loading while auth is initializing
   if (isLoading) {
+    console.log('[AppContent] Showing loading screen');
     return <LoadingScreen message="Initializing Adera..." />;
   }
 
   // If authenticated, show main app
   if (isAuthenticated) {
+    console.log('[AppContent] Authenticated, rendering AppNavigator with role:', role);
     return <AppNavigator />;
   }
 
-  // Show onboarding flow for new users
-  if (showOnboarding) {
+  if (!hasCompletedOnboarding) {
     return <OnboardingScreen onComplete={handleOnboardingComplete} />;
   }
 
-  // Show app selector screen
   if (showAppSelector) {
     return <AppSelectorScreen onAppSelect={handleAppSelect} />;
   }
@@ -51,18 +62,34 @@ function AppContent() {
 
 // Root App with Providers
 export default function App() {
-  return (
-    <SafeAreaProvider>
-      <ThemeProvider>
+  const AppWithTheme = () => {
+    const { themeMode, isReady, setThemeMode } = usePreferences();
+
+    if (!isReady) {
+      return null;
+    }
+
+    return (
+      <ThemeProvider forceLightMode={false} initialMode={themeMode} onModeChange={setThemeMode}>
         <AuthProvider>
-          <NavigationContainer>
-            <View style={styles.container}>
-              <StatusBar style="dark" backgroundColor="#FFFFFF" />
-              <AppContent />
+          <NavigationContainer linking={linking} theme={DefaultTheme}>
+            <View style={styles.container}><StatusBar style="dark" backgroundColor="#FFFFFF" /><AppContent />
             </View>
           </NavigationContainer>
         </AuthProvider>
       </ThemeProvider>
+    );
+  };
+
+  const linking = {
+    prefixes: [Linking.createURL('/')],
+    config: { screens: { AuthCallback: 'auth/callback' } },
+  };
+  return (
+    <SafeAreaProvider>
+      <PreferencesProvider>
+        <AppWithTheme />
+      </PreferencesProvider>
     </SafeAreaProvider>
   );
 }

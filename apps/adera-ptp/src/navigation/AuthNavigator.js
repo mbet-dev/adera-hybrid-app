@@ -1,6 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { LoginScreen, SignUpScreen, ForgotPasswordScreen } from '../screens/Auth';
+import { LoginScreen, SignUpScreen, ForgotPasswordScreen, AuthCallbackScreen } from '../screens/Auth';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import GuestNavigator from './GuestNavigator';
 
@@ -44,6 +44,7 @@ const AuthNavigator = () => {
       <Stack.Screen name="SignUp" component={SignUpScreenWrapper} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreenWrapper} />
       <Stack.Screen name="Guest" component={GuestNavigatorWrapper} />
+      <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} />
     </Stack.Navigator>
   );
 };

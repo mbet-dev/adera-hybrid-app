@@ -5,7 +5,7 @@ import { AuthState, UserRole } from './types';
 export const AuthContext = createContext();
 
 // Demo mode enabled for development (Supabase not configured yet)
-const isDemoMode = true;
+const isDemoMode = process.env.EXPO_PUBLIC_ENABLE_DEMO_MODE === 'true';
 
 const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
@@ -14,37 +14,47 @@ const AuthProvider = ({ children }) => {
   const [authState, setAuthState] = useState(AuthState.LOADING);
 
   useEffect(() => {
-    if (isDemoMode) {
-      // Demo mode - skip authentication for development
-      console.log('Running in demo mode - authentication disabled');
-      setAuthState(AuthState.UNAUTHENTICATED);
-      return;
-    }
+    let isMounted = true;
 
-    // Production mode - real Supabase authentication
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('Error getting session:', error);
-        setAuthState(AuthState.UNAUTHENTICATED);
+    const initializeAuth = async () => {
+      if (isDemoMode) {
+        // Demo mode - skip authentication for development
+        console.log('Running in demo mode - authentication disabled');
+        if (isMounted) setAuthState(AuthState.UNAUTHENTICATED);
         return;
       }
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Consider user authenticated immediately; fetch profile in the background
-        setAuthState(AuthState.AUTHENTICATED);
-        fetchUserProfile(session.user.id);
-      } else {
-        setAuthState(AuthState.UNAUTHENTICATED);
+
+      try {
+        // Production mode - real Supabase authentication
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (isMounted) {
+          setSession(session);
+          setUser(session?.user ?? null);
+          
+          if (session?.user) {
+            // Consider user authenticated immediately; fetch profile in the background
+            setAuthState(AuthState.AUTHENTICATED);
+            fetchUserProfile(session.user.id);
+          } else {
+            setAuthState(AuthState.UNAUTHENTICATED);
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        if (isMounted) setAuthState(AuthState.UNAUTHENTICATED);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event);
+        if (!isMounted) return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -62,7 +72,10 @@ const AuthProvider = ({ children }) => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const ensureUserProfileExists = async (authUser, metadata = {}) => {

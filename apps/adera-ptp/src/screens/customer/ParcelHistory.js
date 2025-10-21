@@ -174,15 +174,23 @@ const ParcelHistory = () => {
             />
           </View>
           <View style={styles.parcelDetails}>
-            <Text style={[styles.trackingId, { color: theme.colors.text.primary }]}>
+            <Text
+              style={[styles.trackingId, { color: theme.colors.text.primary }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
               {item.trackingId}
             </Text>
-            <Text style={[styles.recipient, { color: theme.colors.text.secondary }]}>
+            <Text
+              style={[styles.recipient, { color: theme.colors.text.secondary }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
               To: {item.recipient}
             </Text>
           </View>
         </View>
-        <TouchableOpacity>
+        <TouchableOpacity style={styles.cardAction}>
           <MaterialCommunityIcons
             name="dots-vertical"
             size={24}
@@ -190,7 +198,6 @@ const ParcelHistory = () => {
           />
         </TouchableOpacity>
       </View>
-
       <View style={styles.parcelBody}>
         <View style={styles.parcelDetailRow}>
           <MaterialCommunityIcons
@@ -198,7 +205,11 @@ const ParcelHistory = () => {
             size={16}
             color={theme.colors.text.secondary}
           />
-          <Text style={[styles.parcelDetailText, { color: theme.colors.text.secondary }]}>
+          <Text
+            style={[styles.parcelDetailText, { color: theme.colors.text.secondary }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {new Date(item.date).toLocaleDateString('en-US', {
               month: 'short',
               day: 'numeric',
@@ -212,15 +223,21 @@ const ParcelHistory = () => {
             size={16}
             color={theme.colors.text.secondary}
           />
-          <Text style={[styles.parcelDetailText, { color: theme.colors.text.secondary }]}>
+          <Text
+            style={[styles.parcelDetailText, { color: theme.colors.text.secondary }]}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
             {item.price.toFixed(2)} ETB
           </Text>
         </View>
       </View>
-
       <View style={styles.parcelFooter}>
-        <View style={[styles.statusBadge, { backgroundColor: item.color + '20' }]}>
-          <Text style={[styles.statusText, { color: item.color }]}>
+        <View style={[styles.statusBadge, { backgroundColor: item.color + '20' }]}
+        >
+          <Text style={[styles.statusText, { color: item.color }]}
+            numberOfLines={1}
+          >
             {item.statusLabel}
           </Text>
         </View>
@@ -231,7 +248,9 @@ const ParcelHistory = () => {
               size={18}
               color={theme.colors.primary}
             />
-            <Text style={[styles.trackButtonText, { color: theme.colors.primary }]}>
+            <Text style={[styles.trackButtonText, { color: theme.colors.primary }]}
+              numberOfLines={1}
+            >
               Track
             </Text>
           </TouchableOpacity>
@@ -442,6 +461,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     flex: 1,
+    minWidth: 0,
+  },
+  cardAction: {
+    paddingLeft: 12,
   },
   parcelIcon: {
     width: 48,
@@ -452,6 +475,7 @@ const styles = StyleSheet.create({
   },
   parcelDetails: {
     flex: 1,
+    minWidth: 0,
   },
   trackingId: {
     fontSize: 16,
@@ -463,13 +487,17 @@ const styles = StyleSheet.create({
   },
   parcelBody: {
     flexDirection: 'row',
-    gap: 20,
+    flexWrap: 'wrap',
+    columnGap: 20,
+    rowGap: 8,
     marginBottom: 12,
   },
   parcelDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    flexShrink: 1,
+    minWidth: 0,
   },
   parcelDetailText: {
     fontSize: 14,
@@ -478,11 +506,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
   },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
+    maxWidth: '60%',
   },
   statusText: {
     fontSize: 12,
@@ -492,6 +522,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0,
   },
   trackButtonText: {
     fontSize: 14,

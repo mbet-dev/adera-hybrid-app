@@ -23,8 +23,7 @@ const BottomNavigation = ({ navigationState, onIndexChange, renderScene, style, 
         navigationState={navigationState}
         onIndexChange={onIndexChange}
         renderScene={renderScene}
-        // Force NO internal padding - we control it externally
-        safeAreaInsets={{ bottom: 0, top: 0, left: 0, right: 0 }}
+        safeAreaInsets={{ bottom: deviceBottomInset, top: 0, left: 0, right: 0 }}
         barStyle={[
           {
             backgroundColor: theme.colors.surface,
@@ -33,8 +32,9 @@ const BottomNavigation = ({ navigationState, onIndexChange, renderScene, style, 
             elevation: 8,
             height: 64, // Fixed height for nav bar itself
           },
-          style
+          style,
         ]}
+        sceneContainerStyle={[styles.sceneContainer, { backgroundColor: theme.colors.background }]}
         activeColor={theme.colors.primary}
         inactiveColor={theme.colors.onSurfaceVariant}
         sceneAnimationEnabled={false}
@@ -46,15 +46,24 @@ const BottomNavigation = ({ navigationState, onIndexChange, renderScene, style, 
 
 const styles = StyleSheet.create({
   wrapper: {
+    flex: 1,
     backgroundColor: 'transparent',
+  },
+  sceneContainer: {
+    flex: 1,
   },
 });
 
-// Add SceneMap functionality
+// Add SceneMap functionality - AGGRESSIVE: Wrap in View to prevent Fragment prop warnings
 BottomNavigation.SceneMap = (scenes) => {
-  return ({ route, jumpTo }) => {
+  return ({ route }) => {
     const Scene = scenes[route.key];
-    return Scene ? <Scene jumpTo={jumpTo} /> : null;
+    // Wrap in View to prevent RNP from passing invalid props to potential Fragments
+    return Scene ? (
+      <View style={{ flex: 1 }}>
+        <Scene />
+      </View>
+    ) : null;
   };
 };
 

@@ -18,6 +18,8 @@ const CustomerNavigator = () => {
     { key: 'profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
   ]);
 
+  console.log('[CustomerNavigator] Rendering with index:', index);
+
   const renderScene = BottomNavigation.SceneMap({
     dashboard: CustomerDashboard,
     create: CreateParcel,
@@ -26,10 +28,15 @@ const CustomerNavigator = () => {
     profile: Profile,
   });
 
+  console.log('[CustomerNavigator] Scene map created, rendering BottomNavigation');
+
   return (
     <BottomNavigation
       navigationState={{ index, routes }}
-      onIndexChange={setIndex}
+      onIndexChange={(newIndex) => {
+        console.log('[CustomerNavigator] Tab changed to:', newIndex, routes[newIndex]?.title);
+        setIndex(newIndex);
+      }}
       renderScene={renderScene}
     />
   );

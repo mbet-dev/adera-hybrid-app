@@ -11,13 +11,17 @@ import {
 import { SafeArea, Card, useTheme } from '@adera/ui';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '@adera/auth';
 
 const { width } = Dimensions.get('window');
 
 const CustomerDashboard = ({ navigation }) => {
   const theme = useTheme();
+  const { signOut } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [walletBalance, setWalletBalance] = useState(1250.50);
+
+  console.log('[CustomerDashboard] Rendering...');
   const [recentParcels, setRecentParcels] = useState([
     {
       id: '1',
@@ -111,22 +115,22 @@ const CustomerDashboard = ({ navigation }) => {
               Alex Mengistu
             </Text>
           </View>
-          <TouchableOpacity
-            style={[styles.notificationButton, { backgroundColor: theme.colors.surfaceVariant }]}
-          >
-            <MaterialCommunityIcons
-              name="bell-outline"
-              size={24}
-              color={theme.colors.text.primary}
-            />
-            <View style={[styles.notificationBadge, { backgroundColor: theme.colors.error }]}>
-              <Text style={styles.notificationBadgeText}>3</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              style={[styles.notificationButton, { backgroundColor: theme.colors.surfaceVariant }]}
+            >
+              <MaterialCommunityIcons
+                name="bell-outline"
+                size={24}
+                color={theme.colors.text.primary}
+              />
+              <View style={[styles.notificationBadge, { backgroundColor: theme.colors.error }]}>
+                <Text style={styles.notificationBadgeText}>3</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
-
-        {/* Wallet Card */}
-        <LinearGradient
+        {/* Wallet Card */}<LinearGradient
           colors={[theme.colors.primary, theme.colors.secondary]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -153,9 +157,7 @@ const CustomerDashboard = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </LinearGradient>
-
-        {/* Quick Actions */}
-        <View style={styles.section}>
+        {/* Quick Actions */}<View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
             Quick Actions
           </Text>
@@ -179,9 +181,7 @@ const CustomerDashboard = ({ navigation }) => {
             ))}
           </View>
         </View>
-
-        {/* Statistics */}
-        <View style={styles.section}>
+        {/* Statistics */}<View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
             Parcel Summary
           </Text>
@@ -209,9 +209,7 @@ const CustomerDashboard = ({ navigation }) => {
             ))}
           </View>
         </View>
-
-        {/* Recent Parcels */}
-        <View style={styles.section}>
+        {/* Recent Parcels */}<View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
               Recent Parcels

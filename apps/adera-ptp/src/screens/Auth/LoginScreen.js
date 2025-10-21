@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth, useAuthErrors } from '@adera/auth';
 import { Button, TextInput, useTheme } from '@adera/ui';
+import { usePreferences } from '@adera/preferences';
 
 const LoginScreen = ({ navigation }) => {
   const theme = useTheme();
   const { signIn, isLoading } = useAuth();
   const { getErrorMessage, isNetworkError } = useAuthErrors();
+  const { biometricEnabled } = usePreferences();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +28,24 @@ const LoginScreen = ({ navigation }) => {
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   const [showResendLink, setShowResendLink] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+
+  useEffect(() => {
+    const checkBiometric = async () => {
+      if (!biometricEnabled) {
+        setBiometricAvailable(false);
+        return;
+      }
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+        setBiometricAvailable(hasHardware && isEnrolled);
+      } catch (error) {
+        setBiometricAvailable(false);
+      }
+    };
+    checkBiometric();
+  }, [biometricEnabled]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -93,6 +114,22 @@ const LoginScreen = ({ navigation }) => {
 
   const handleSignUp = () => {
     navigation.navigate('SignUp');
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Sign in with biometrics',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+
+      if (result.success) {
+        Alert.alert('Success', 'Biometric login functionality coming soon. Please use email/password for now.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Biometric authentication failed');
+    }
   };
 
   return (
@@ -168,9 +205,7 @@ const LoginScreen = ({ navigation }) => {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
-              textContentType="emailAddress"
-                          />
-
+              textContentType="emailAddress"/>
             <TextInput
               label="Password"
               value={password}
@@ -184,7 +219,6 @@ const LoginScreen = ({ navigation }) => {
               autoComplete="password"
               textContentType="password"
                                         />
-
             <TouchableOpacity
               onPress={handleForgotPassword}
               style={styles.forgotPassword}
@@ -193,7 +227,6 @@ const LoginScreen = ({ navigation }) => {
                 Forgot Password?
               </Text>
             </TouchableOpacity>
-
             <Button
               title="Sign In"
               onPress={handleLogin}
@@ -202,7 +235,22 @@ const LoginScreen = ({ navigation }) => {
               size="lg"
               style={styles.signInButton}
             />
-
+            {biometricAvailable && (
+              <TouchableOpacity
+                onPress={handleBiometricLogin}
+                style={[styles.biometricButton, { borderColor: theme.colors.outline }]}
+                disabled={isLoading}
+              >
+                <MaterialCommunityIcons
+                  name="fingerprint"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+                <Text style={[styles.biometricButtonText, { color: theme.colors.primary }]}>
+                  Sign in with biometrics
+                </Text>
+              </TouchableOpacity>
+            )}
             {/* Divider */}
             <View style={styles.divider}>
               <View style={[styles.dividerLine, { backgroundColor: theme.colors.outline }]} />
@@ -211,7 +259,6 @@ const LoginScreen = ({ navigation }) => {
               </Text>
               <View style={[styles.dividerLine, { backgroundColor: theme.colors.outline }]} />
             </View>
-
             {/* Guest Mode */}
             <Button
               title="Continue as Guest"
@@ -221,7 +268,6 @@ const LoginScreen = ({ navigation }) => {
               style={styles.guestButton}
             />
           </View>
-
           {/* Footer */}
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: theme.colors.text.secondary }]}>
@@ -325,6 +371,21 @@ const styles = StyleSheet.create({
   },
   signInButton: {
     marginBottom: 24,
+  },
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 24,
+    gap: 12,
+  },
+  biometricButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
