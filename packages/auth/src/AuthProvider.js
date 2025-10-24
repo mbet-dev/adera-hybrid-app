@@ -80,9 +80,11 @@ const AuthProvider = ({ children }) => {
 
   const ensureUserProfileExists = async (authUser, metadata = {}) => {
     try {
+      console.log('[AuthProvider] Ensuring user profile exists for:', authUser.email);
+      
       const { data, error } = await supabase
         .from('users')
-        .select('id')
+        .select('id, is_verified')
         .eq('id', authUser.id)
         .single();
 
@@ -104,13 +106,23 @@ const AuthProvider = ({ children }) => {
           role: metadata?.role || 'customer',
         };
         
+        console.log('[AuthProvider] Creating user profile with data:', profileData);
+        
         const { error: insertError } = await supabase.from('users').insert(profileData);
         if (insertError) {
-          console.warn('ensureUserProfileExists: insert error', insertError);
+          console.error('ensureUserProfileExists: insert error', insertError);
+          // If it's a duplicate key error, the trigger might have already created it
+          if (insertError.code === '23505') {
+            console.log('[AuthProvider] User profile already exists (duplicate key)');
+          }
+        } else {
+          console.log('[AuthProvider] User profile created successfully');
         }
+      } else {
+        console.log('[AuthProvider] User profile already exists, verified:', data.is_verified);
       }
     } catch (e) {
-      console.warn('ensureUserProfileExists: unexpected error', e);
+      console.error('ensureUserProfileExists: unexpected error', e);
     }
   };
 
@@ -207,15 +219,29 @@ const AuthProvider = ({ children }) => {
     });
 
     if (error) {
+      console.error('Sign in error:', error);
+      
       // Handle 'Email not confirmed' error specifically
-      if (error.message.includes('Email not confirmed')) {
+      if (error.message.includes('Email not confirmed') || error.message.includes('EMAIL_NOT_CONFIRMED')) {
         throw new Error('EMAIL_NOT_CONFIRMED');
       }
+      
+      // Handle other common errors
+      if (error.message.includes('Invalid login credentials')) {
+        throw new Error('INVALID_CREDENTIALS');
+      }
+      
+      if (error.message.includes('Too many requests')) {
+        throw new Error('TOO_MANY_REQUESTS');
+      }
+      
       throw error;
     }
 
     // Best-effort: ensure profile exists and update last login
     if (data?.user) {
+      console.log('Sign in successful, user:', data.user.email, 'confirmed:', !!data.user.email_confirmed_at);
+      
       // Pass metadata from the user object itself upon sign-in
       await ensureUserProfileExists(data.user, data.user.user_metadata);
       await touchLastLogin(data.user.id);
@@ -270,7 +296,7 @@ const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const signOut = async () => {
+  const signOut = async (navigation) => {
     if (isDemoMode) {
       // Demo logout
       setUser(null);
@@ -282,6 +308,7 @@ const AuthProvider = ({ children }) => {
 
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    navigation.navigate('Login');
   };
 
   const updateProfile = async (updates) => {
@@ -378,6 +405,35 @@ const AuthProvider = ({ children }) => {
     return { success: true };
   };
 
+
+  const checkEmailConfirmationStatus = async () => {
+    if (isDemoMode) {
+      return { confirmed: true };
+    }
+
+    try {
+      // First try to get current session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('Session error:', sessionError);
+        return { confirmed: false, error: sessionError };
+      }
+      
+      if (session?.user) {
+        // Check if email is confirmed
+        const isConfirmed = !!session.user.email_confirmed_at;
+        console.log('Email confirmation status:', isConfirmed, 'for user:', session.user.email);
+        return { confirmed: isConfirmed, user: session.user };
+      }
+      
+      return { confirmed: false };
+    } catch (error) {
+      console.error('Error checking email confirmation:', error);
+      return { confirmed: false, error };
+    }
+  };
+
   const resendConfirmationEmail = async (email) => {
     if (isDemoMode) {
       console.log('Demo mode: Confirmation email would be resent to:', email);
@@ -400,6 +456,7 @@ const AuthProvider = ({ children }) => {
       }
     };
 
+    console.log('Resending confirmation email to:', email);
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email,
@@ -408,26 +465,13 @@ const AuthProvider = ({ children }) => {
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Resend confirmation error:', error);
+      throw error;
+    }
+    
+    console.log('Confirmation email sent successfully');
     return { success: true };
-  };
-
-  const checkEmailConfirmationStatus = async () => {
-    if (isDemoMode) {
-      return { confirmed: true };
-    }
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // If we have a valid session, email is confirmed
-        return { confirmed: true, user: session.user };
-      }
-      return { confirmed: false };
-    } catch (error) {
-      console.error('Error checking email confirmation:', error);
-      return { confirmed: false, error };
-    }
   };
 
   const value = {

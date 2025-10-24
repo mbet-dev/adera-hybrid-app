@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from '@adera/auth';
 import { PreferencesProvider, usePreferences } from '@adera/preferences';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
+import ThemelessLoadingScreen from './src/ThemelessLoadingScreen';
 
 // Main App Component
 function AppContent() {
@@ -63,17 +64,19 @@ function AppContent() {
 // Root App with Providers
 export default function App() {
   const AppWithTheme = () => {
-    const { themeMode, isReady, setThemeMode } = usePreferences();
+    const { themeMode, isReady } = usePreferences();
 
     if (!isReady) {
-      return null;
+      return <ThemelessLoadingScreen message="Loading preferences..." />;
     }
 
     return (
-      <ThemeProvider forceLightMode={false} initialMode={themeMode} onModeChange={setThemeMode}>
+      <ThemeProvider forceLightMode={false} initialMode={themeMode}>
         <AuthProvider>
           <NavigationContainer linking={linking} theme={DefaultTheme}>
-            <View style={styles.container}><StatusBar style="dark" backgroundColor="#FFFFFF" /><AppContent />
+            <View style={styles.container}>
+              <StatusBar style="auto" />
+              <AppContent />
             </View>
           </NavigationContainer>
         </AuthProvider>

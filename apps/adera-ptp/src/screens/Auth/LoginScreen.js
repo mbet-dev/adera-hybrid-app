@@ -5,83 +5,88 @@ import {
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
-  Platform,
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { Formik } from 'formik';
+import * as Yup from 'yup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth, useAuthErrors } from '@adera/auth';
 import { Button, TextInput, useTheme } from '@adera/ui';
+import { Platform } from 'react-native';
 import { usePreferences } from '@adera/preferences';
+
+console.log('Platform.OS:', Platform.OS);
 
 const LoginScreen = ({ navigation }) => {
   const theme = useTheme();
-  const { signIn, isLoading } = useAuth();
+  const { signIn, isLoading, resendConfirmationEmail, checkEmailConfirmationStatus, refreshSession } = useAuth();
   const { getErrorMessage, isNetworkError } = useAuthErrors();
   const { biometricEnabled } = usePreferences();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   const [showResendLink, setShowResendLink] = useState(false);
+  const [showRefreshLink, setShowRefreshLink] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
 
   useEffect(() => {
     const checkBiometric = async () => {
-      if (!biometricEnabled) {
+      console.log('[LoginScreen] Checking biometric compatibility');
+      if (typeof Platform === 'undefined' || typeof Platform.OS === 'undefined') {
+        console.log('[LoginScreen] Platform or Platform.OS is undefined.');
         setBiometricAvailable(false);
         return;
       }
-      try {
-        const hasHardware = await LocalAuthentication.hasHardwareAsync();
-        const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-        setBiometricAvailable(hasHardware && isEnrolled);
-      } catch (error) {
+      console.log('[LoginScreen] Platform is:', Platform.OS);
+
+      if (Platform?.OS !== 'web') {
+        if (!biometricEnabled) {
+          setBiometricAvailable(false);
+          return;
+        }
+
+        try {
+          const hasHardware = await LocalAuthentication.hasHardwareAsync();
+          const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+          setBiometricAvailable(hasHardware && isEnrolled);
+
+          console.log('[LoginScreen] Biometric check:', {
+            hasHardware,
+            isEnrolled,
+            available: hasHardware && isEnrolled,
+            platform: Platform.OS
+          });
+        } catch (error) {
+          console.error('[LoginScreen] Biometric check error:', error);
+          setBiometricAvailable(false);
+        }
+      } else {
         setBiometricAvailable(false);
       }
     };
     checkBiometric();
   }, [biometricEnabled]);
 
-  const validateForm = () => {
-    const newErrors = {};
+  const validationSchema = Yup.object().shape({
+    email: Yup.string()
+      .email('Please enter a valid email address')
+      .required('Email address is required')
+      .max(255, 'Email address is too long'),
+    password: Yup.string()
+      .required('Password is required')
+      .min(6, 'Password must be at least 6 characters')
+      .max(72, 'Password is too long (max 72 characters)'),
+  });
 
-    // Email validation
-    if (!email.trim()) {
-      newErrors.email = 'Email address is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      newErrors.email = 'Please enter a valid email address';
-    } else if (email.trim().length > 255) {
-      newErrors.email = 'Email address is too long';
-    }
-
-    // Password validation
-    if (!password) {
-      newErrors.password = 'Password is required';
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    } else if (password.length > 72) {
-      newErrors.password = 'Password is too long (max 72 characters)';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleLogin = async () => {
+  const handleLogin = async (email, password) => {
     // Clear previous errors
-    setErrors({});
     setErrorMessage('');
     setShowResendLink(false);
-
-    // Validate form
-    if (!validateForm()) {
-      return;
-    }
+    setShowRefreshLink(false);
 
     try {
       // Attempt sign in
@@ -97,10 +102,15 @@ const LoginScreen = ({ navigation }) => {
           '🌐 Connection Issue',
           'Unable to connect to the server. Please check your internet connection and try again.',
           [
-            { text: 'Retry', onPress: handleLogin },
+            { text: 'Retry', onPress: () => handleLogin(email, password) },
             { text: 'Cancel', style: 'cancel' }
           ]
         );
+      } else if (error.message === 'EMAIL_NOT_CONFIRMED') {
+        // Handle email not confirmed error
+        setErrorMessage('Please check your email and click the confirmation link before signing in.');
+        setShowResendLink(true);
+        setShowRefreshLink(true);
       } else {
         // Display error in UI
         setErrorMessage(message || 'Login failed. Please try again.');
@@ -116,19 +126,89 @@ const LoginScreen = ({ navigation }) => {
     navigation.navigate('SignUp');
   };
 
-  const handleBiometricLogin = async () => {
+  const handleResendConfirmation = async () => {
     try {
+      await resendConfirmationEmail(email.trim().toLowerCase());
+      Alert.alert(
+        '📧 Email Sent',
+        'A new confirmation email has been sent. Please check your inbox and click the link to confirm your email address.',
+        [{ text: 'OK' }]
+      );
+      setShowResendLink(false);
+    } catch (error) {
+      console.error('Resend confirmation error:', error);
+      Alert.alert(
+        '❌ Error',
+        'Failed to resend confirmation email. Please try again later.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  const handleRefreshSession = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshSession();
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const status = await checkEmailConfirmationStatus();
+      
+      if (status.confirmed) {
+        setErrorMessage('Email confirmed! Logging you in...');
+        await handleLogin();
+      } else {
+        Alert.alert(
+          'ℹ️ Not Confirmed Yet',
+          'Your email is still not confirmed. Please check your inbox and click the confirmation link.'
+        );
+      }
+    } catch (error) {
+      console.error('Refresh session error:', error);
+      Alert.alert('❌ Error', `Failed to refresh session: ${error.message}`);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    console.log('[LoginScreen] handleBiometricLogin called');
+    console.log('[LoginScreen] Platform.OS in handleBiometricLogin:', Platform.OS);
+    try {
+      // Check if biometrics are available first
+      if (!biometricAvailable) {
+        Alert.alert(
+          'Biometric Not Available',
+          'Biometric authentication is not available on this device or platform. Please use email/password to sign in.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: 'Sign in with biometrics',
         cancelLabel: 'Cancel',
         disableDeviceFallback: false,
       });
+      console.log('[LoginScreen] Biometric authentication result:', result);
 
       if (result.success) {
-        Alert.alert('Success', 'Biometric login functionality coming soon. Please use email/password for now.');
+        // For now, show a message that biometric login is not fully implemented
+        // In the future, this would retrieve stored credentials and sign in automatically
+        Alert.alert(
+          'Biometric Login',
+          'Biometric authentication successful! However, automatic login is not yet implemented. Please use email/password for now.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        console.log('Biometric authentication cancelled or failed:', result.error);
       }
     } catch (error) {
-      Alert.alert('Error', 'Biometric authentication failed');
+      console.error('Biometric authentication error:', error);
+      Alert.alert(
+        'Biometric Error',
+        'Biometric authentication failed. Please use email/password to sign in.',
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -162,18 +242,7 @@ const LoginScreen = ({ navigation }) => {
 
           {/* Form */}
           <View style={styles.form}>
-            {errors.general && (
-              <View style={[styles.errorBanner, { backgroundColor: theme.colors.errorContainer }]}>
-                <MaterialCommunityIcons
-                  name="alert-circle"
-                  size={20}
-                  color={theme.colors.error}
-                />
-                <Text style={[styles.errorBannerText, { color: theme.colors.error }]}>
-                  {errors.general}
-                </Text>
-              </View>
-            )}
+            {/* Existing error banner */}
             {errorMessage && (
               <View style={[styles.errorBanner, { backgroundColor: theme.colors.errorContainer }]}>
                 <MaterialCommunityIcons
@@ -185,56 +254,90 @@ const LoginScreen = ({ navigation }) => {
                   <Text style={[styles.errorBannerText, { color: theme.colors.error }]}>
                     {errorMessage}
                   </Text>
-                  {showResendLink && (
+                  {(showResendLink || showRefreshLink) && (
                     <View style={styles.errorActions}>
-                      <Text style={[styles.errorBannerText, { color: theme.colors.text.secondary }]}>Check your inbox for confirmation.</Text>
+                      {showRefreshLink && (
+                        <TouchableOpacity 
+                          onPress={handleRefreshSession} 
+                          disabled={isRefreshing}
+                          style={[styles.errorActionButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                        >
+                          <Text style={[styles.errorActionText, { color: theme.colors.primary }]}>
+                            {isRefreshing ? 'Refreshing...' : '🔄 Refresh Session'}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      {showResendLink && (
+                        <TouchableOpacity 
+                          onPress={handleResendConfirmation}
+                          style={[styles.errorActionButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                        >
+                          <Text style={[styles.errorActionText, { color: theme.colors.primary }]}>
+                            📧 Resend Email
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>
               </View>
             )}
 
-            <TextInput
-              label="Email"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (errors.email) setErrors({ ...errors, email: null });
-              }}
-              error={errors.email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              textContentType="emailAddress"/>
-            <TextInput
-              label="Password"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (errors.password) setErrors({ ...errors, password: null });
-              }}
-              error={errors.password}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoComplete="password"
-              textContentType="password"
-                                        />
-            <TouchableOpacity
-              onPress={handleForgotPassword}
-              style={styles.forgotPassword}
+            <Formik
+              initialValues={{ email: '', password: '' }}
+              validationSchema={validationSchema}
+              onSubmit={(values) => handleLogin(values.email, values.password)}
             >
-              <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
-            <Button
-              title="Sign In"
-              onPress={handleLogin}
-              loading={isLoading}
-              disabled={isLoading}
-              size="lg"
-              style={styles.signInButton}
-            />
+              {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                <>
+                  <TextInput
+                    label="Email"
+                    value={values.email}
+                    onChangeText={handleChange('email')}
+                    onBlur={handleBlur('email')}
+                    error={touched.email && errors.email}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    textContentType="emailAddress"
+                  />
+                  {touched.email && errors.email && (
+                    <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.email}</Text>
+                  )}
+                  <TextInput
+                    label="Password"
+                    value={values.password}
+                    onChangeText={handleChange('password')}
+                    onBlur={handleBlur('password')}
+                    error={touched.password && errors.password}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    textContentType="password"
+                  />
+                  {touched.password && errors.password && (
+                    <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.password}</Text>
+                  )}
+                  <TouchableOpacity
+                    onPress={handleForgotPassword}
+                    style={styles.forgotPassword}
+                  >
+                    <Text style={[styles.forgotPasswordText, { color: theme.colors.primary }]}>
+                      Forgot Password?
+                    </Text>
+                  </TouchableOpacity>
+                  <Button
+                    title="Sign In"
+                    onPress={handleSubmit}
+                    loading={isLoading}
+                    disabled={isLoading}
+                    size="lg"
+                    style={styles.signInButton}
+                  />
+                </>
+              )}
+            </Formik>
+
             {biometricAvailable && (
               <TouchableOpacity
                 onPress={handleBiometricLogin}
@@ -342,13 +445,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 4,
+    marginTop: 8,
   },
   errorActionButton: {
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 6,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    borderRadius: 8,
+    minHeight: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   errorActionText: {
     fontSize: 13,
@@ -418,6 +523,10 @@ const styles = StyleSheet.create({
   footerLink: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  errorText: { // Added error text style
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

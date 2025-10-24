@@ -44,6 +44,10 @@ const Profile = ({ navigation }) => {
           onPress: async () => {
             try {
               await signOut();
+              // For web, force reload to clear stale state
+              if (typeof window !== 'undefined' && window.location) {
+                window.location.reload();
+              }
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             }
@@ -54,7 +58,6 @@ const Profile = ({ navigation }) => {
   };
 
   const handleThemeModeChange = () => {
-    console.log('[Profile] handleThemeModeChange called, current mode:', themeMode);
     Alert.alert(
       'Select Theme',
       'Choose your preferred theme mode',
@@ -62,22 +65,19 @@ const Profile = ({ navigation }) => {
         {
           text: 'System Default',
           onPress: () => {
-            console.log('[Profile] User selected System theme');
-            setThemeMode('system');
+            if (themeMode !== 'system') setThemeMode('system');
           },
         },
         {
           text: 'Light Mode',
           onPress: () => {
-            console.log('[Profile] User selected Light theme');
-            setThemeMode('light');
+            if (themeMode !== 'light') setThemeMode('light');
           },
         },
         {
           text: 'Dark Mode',
           onPress: () => {
-            console.log('[Profile] User selected Dark theme');
-            setThemeMode('dark');
+            if (themeMode !== 'dark') setThemeMode('dark');
           },
         },
         { text: 'Cancel', style: 'cancel' },
@@ -86,7 +86,6 @@ const Profile = ({ navigation }) => {
   };
 
   const handleLanguageChange = () => {
-    console.log('[Profile] handleLanguageChange called, current language:', language);
     Alert.alert(
       'Select Language',
       'Choose your preferred language',
@@ -94,15 +93,13 @@ const Profile = ({ navigation }) => {
         {
           text: 'English',
           onPress: () => {
-            console.log('[Profile] User selected English');
-            setLanguage('en');
+            if (language !== 'en') setLanguage('en');
           },
         },
         {
           text: 'አማርኛ (Amharic)',
           onPress: () => {
-            console.log('[Profile] User selected Amharic');
-            setLanguage('am');
+            if (language !== 'am') setLanguage('am');
           },
         },
         { text: 'Cancel', style: 'cancel' },

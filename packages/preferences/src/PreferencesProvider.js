@@ -65,7 +65,7 @@ export const PreferencesProvider = ({ children }) => {
   }, [loadPreferences]);
 
   const setThemeMode = useCallback(async (newMode) => {
-    console.log('[PreferencesProvider] Setting theme mode to:', newMode);
+    if (newMode === state.themeMode) return; // no-op if no change
     setState((prev) => ({ ...prev, themeMode: newMode }));
     try {
       await AsyncStorage.setItem(THEME_KEY, newMode);
@@ -73,10 +73,10 @@ export const PreferencesProvider = ({ children }) => {
     } catch (error) {
       console.error('[PreferencesProvider] Failed to save theme mode:', error);
     }
-  }, []);
+  }, [state.themeMode]);
 
   const setLanguage = useCallback(async (code) => {
-    console.log('[PreferencesProvider] Setting language to:', code);
+    if (code === state.language) return; // no-op if no change
     setState((prev) => ({ ...prev, language: code }));
     try {
       await AsyncStorage.setItem(LANGUAGE_KEY, code);
@@ -84,7 +84,7 @@ export const PreferencesProvider = ({ children }) => {
     } catch (error) {
       console.error('[PreferencesProvider] Failed to save language:', error);
     }
-  }, []);
+  }, [state.language]);
 
   const persistBiometric = useCallback(async (enabled) => {
     setState((prev) => ({ ...prev, biometricEnabled: enabled }));

@@ -13,6 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth, useAuthErrors, UserRole } from '@adera/auth';
 import { Button, TextInput, useTheme } from '@adera/ui';
+import { Formik } from 'formik';
+import * as Yup from 'yup';
 
 const ROLE_OPTIONS = [
   {
@@ -40,127 +42,30 @@ const SignUpScreen = ({ navigation }) => {
   const { signUp, isLoading } = useAuth();
   const { getErrorMessage, isNetworkError } = useAuthErrors();
 
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    role: UserRole.CUSTOMER,
-  });
-
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [errors, setErrors] = useState({});
 
-  const updateField = (field, value) => {
-    setFormData({ ...formData, [field]: value });
-    if (errors[field]) {
-      setErrors({ ...errors, [field]: null });
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    // First name validation
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = 'First name is required';
-    } else if (formData.firstName.trim().length < 2) {
-      newErrors.firstName = 'First name must be at least 2 characters';
-    } else if (formData.firstName.trim().length > 50) {
-      newErrors.firstName = 'First name is too long';
-    } else if (!/^[a-zA-Z\s'-]+$/.test(formData.firstName.trim())) {
-      newErrors.firstName = 'First name contains invalid characters';
-    }
-
-    // Last name validation
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
-    } else if (formData.lastName.trim().length < 2) {
-      newErrors.lastName = 'Last name must be at least 2 characters';
-    } else if (formData.lastName.trim().length > 50) {
-      newErrors.lastName = 'Last name is too long';
-    } else if (!/^[a-zA-Z\s'-]+$/.test(formData.lastName.trim())) {
-      newErrors.lastName = 'Last name contains invalid characters';
-    }
-
-    // Email validation
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email address is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      newErrors.email = 'Please enter a valid email address';
-    } else if (formData.email.trim().length > 255) {
-      newErrors.email = 'Email address is too long';
-    }
-
-    // Phone validation (Ethiopian format)
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone number is required';
-    } else {
-      const cleanPhone = formData.phone.replace(/\s/g, '');
-      if (!/^\+?251[79]\d{8}$/.test(cleanPhone)) {
-        newErrors.phone = 'Enter valid Ethiopian number (+2519XXXXXXXX or +2517XXXXXXXX)';
-      }
-    }
-
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    } else if (formData.password.length > 72) {
-      newErrors.password = 'Password is too long (max 72 characters)';
-    } else if (!/(?=.*[a-z])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one lowercase letter';
-    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one uppercase letter';
-    } else if (!/(?=.*\d)/.test(formData.password)) {
-      newErrors.password = 'Password must contain at least one number';
-    }
-
-    // Confirm password validation
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSignUp = async () => {
-    // Clear previous errors
-    setErrors({});
-    
-    // Validate form
-    if (!validateForm()) {
-      // Scroll to top to show errors
-      return;
-    }
-
+  const handleSignUp = async (values) => {
     try {
       // Prepare user data
       const userData = {
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        phone: formData.phone.trim(),
-        role: formData.role,
+        first_name: values.firstName.trim(),
+        last_name: values.lastName.trim(),
+        phone: values.phone.trim(),
+        role: values.role,
       };
 
       // Attempt sign up
       await signUp(
-        formData.email.trim().toLowerCase(),
-        formData.password,
+        values.email.trim().toLowerCase(),
+        values.password,
         userData
       );
 
       // Success - show confirmation (works for both native and web)
       Alert.alert(
         '✅ Account Created!',
-        `Welcome to Adera, ${formData.firstName}! We've sent a verification email to ${formData.email}. Please check your inbox and verify your account to get started.`,
+        `Welcome to Adera, ${values.firstName}! We've sent a verification email to ${values.email}. Please check your inbox and verify your account to get started.`,
         [
           {
             text: 'Got it',
@@ -179,18 +84,13 @@ const SignUpScreen = ({ navigation }) => {
           '🌐 Connection Issue',
           'Unable to connect to the server. Please check your internet connection and try again.',
           [
-            { text: 'Retry', onPress: handleSignUp },
+            { text: 'Retry', onPress: () => handleSignUp(values) },
             { text: 'Cancel', style: 'cancel' }
           ]
         );
       } else {
         // Display error in UI
-        setErrors({ general: message });
-        
-        // Auto-clear error after 7 seconds
-        setTimeout(() => {
-          setErrors(prev => ({ ...prev, general: null }));
-        }, 7000);
+        Alert.alert('Sign Up Failed', message);
       }
     }
   };
@@ -198,6 +98,37 @@ const SignUpScreen = ({ navigation }) => {
   const handleLogin = () => {
     navigation.navigate('Login');
   };
+
+  const validationSchema = Yup.object().shape({
+    firstName: Yup.string()
+      .required('First name is required')
+      .min(2, 'First name must be at least 2 characters')
+      .max(50, 'First name is too long')
+      .matches(/^[a-zA-Z\s\'-]+$/, 'First name contains invalid characters'),
+    lastName: Yup.string()
+      .required('Last name is required')
+      .min(2, 'Last name must be at least 2 characters')
+      .max(50, 'Last name is too long')
+      .matches(/^[a-zA-Z\s\'-]+$/, 'Last name contains invalid characters'),
+    email: Yup.string()
+      .email('Please enter a valid email address')
+      .required('Email address is required')
+      .max(255, 'Email address is too long'),
+    phone: Yup.string()
+      .required('Phone number is required')
+      .matches(/^\+?251[79]\d{8}$/, 'Enter valid Ethiopian number (+2519XXXXXXXX or +2517XXXXXXXX)'),
+    password: Yup.string()
+      .required('Password is required')
+      .min(8, 'Password must be at least 8 characters')
+      .max(72, 'Password is too long (max 72 characters)')
+      .matches(/(?=.*[a-z])/, 'Password must contain at least one lowercase letter')
+      .matches(/(?=.*[A-Z])/, 'Password must contain at least one uppercase letter')
+      .matches(/(?=.*\d)/, 'Password must contain at least one number'),
+    confirmPassword: Yup.string()
+      .required('Please confirm your password')
+      .oneOf([Yup.ref('password')], 'Passwords do not match'),
+    role: Yup.string().required('Please select a role'),
+  });
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom', 'left', 'right']}>
@@ -232,181 +163,207 @@ const SignUpScreen = ({ navigation }) => {
 
           {/* Form */}
           <View style={styles.form}>
-            {errors.general && (
-              <View style={[styles.errorBanner, { backgroundColor: theme.colors.errorContainer }]}>
-                <MaterialCommunityIcons
-                  name="alert-circle"
-                  size={20}
-                  color={theme.colors.error}
-                />
-                <Text style={[styles.errorBannerText, { color: theme.colors.error }]}>
-                  {errors.general}
-                </Text>
-              </View>
-            )}
-
-            {/* Role Selection */}
-            <View style={styles.roleSection}>
-              <Text style={[styles.sectionLabel, { color: theme.colors.text.primary }]}>
-                I want to join as:
-              </Text>
-              <View style={styles.roleOptions}>
-                {ROLE_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.roleCard,
-                      {
-                        backgroundColor: theme.colors.surface,
-                        borderColor:
-                          formData.role === option.value
-                            ? theme.colors.primary
-                            : theme.colors.outline,
-                        borderWidth: formData.role === option.value ? 2 : 1,
-                      },
-                    ]}
-                    onPress={() => updateField('role', option.value)}
-                  >
-                    <View
-                      style={[
-                        styles.roleIconContainer,
-                        {
-                          backgroundColor:
-                            formData.role === option.value
-                              ? theme.colors.primaryContainer
-                              : theme.colors.surfaceVariant,
-                        },
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name={option.icon}
-                        size={24}
-                        color={
-                          formData.role === option.value
-                            ? theme.colors.primary
-                            : theme.colors.text.secondary
-                        }
-                      />
+            <Formik
+              initialValues={{
+                firstName: '',
+                lastName: '',
+                email: '',
+                phone: '',
+                password: '',
+                confirmPassword: '',
+                role: UserRole.CUSTOMER,
+              }}
+              validationSchema={validationSchema}
+              onSubmit={handleSignUp}
+            >
+              {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                <>
+                  {/* Role Selection */}
+                  <View style={styles.roleSection}>
+                    <Text style={[styles.sectionLabel, { color: theme.colors.text.primary }]}>
+                      I want to join as:
+                    </Text>
+                    <View style={styles.roleOptions}>
+                      {ROLE_OPTIONS.map((option) => (
+                        <TouchableOpacity
+                          key={option.value}
+                          style={[
+                            styles.roleCard,
+                            {
+                              backgroundColor: theme.colors.surface,
+                              borderColor:
+                                values.role === option.value
+                                  ? theme.colors.primary
+                                  : theme.colors.outline,
+                              borderWidth: values.role === option.value ? 2 : 1,
+                            },
+                          ]}
+                          onPress={() => handleChange('role')(option.value)}
+                        >
+                          <View
+                            style={[
+                              styles.roleIconContainer,
+                              {
+                                backgroundColor:
+                                  values.role === option.value
+                                    ? theme.colors.primaryContainer
+                                    : theme.colors.surfaceVariant,
+                              },
+                            ]}
+                          >
+                            <MaterialCommunityIcons
+                              name={option.icon}
+                              size={24}
+                              color={
+                                values.role === option.value
+                                  ? theme.colors.primary
+                                  : theme.colors.text.secondary
+                              }
+                            />
+                          </View>
+                          <Text
+                            style={[
+                              styles.roleLabel,
+                              {
+                                color:
+                                  values.role === option.value
+                                    ? theme.colors.primary
+                                    : theme.colors.text.primary,
+                              },
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                          <Text style={[styles.roleDescription, { color: theme.colors.text.secondary }]}>
+                            {option.description}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
                     </View>
-                    <Text
-                      style={[
-                        styles.roleLabel,
-                        {
-                          color:
-                            formData.role === option.value
-                              ? theme.colors.primary
-                              : theme.colors.text.primary,
-                        },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    <Text style={[styles.roleDescription, { color: theme.colors.text.secondary }]}>
-                      {option.description}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                    {touched.role && errors.role && (
+                      <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.role}</Text>
+                    )}
+                  </View>
 
-            {/* Personal Information */}
-            <View style={styles.row}>
-              <TextInput
-                label="First Name"
-                value={formData.firstName}
-                onChangeText={(text) => updateField('firstName', text)}
-                error={errors.firstName}
-                autoCapitalize="words"
-                style={styles.halfInput}
-              />
-              <View style={styles.spacer} />
-              <TextInput
-                label="Last Name"
-                value={formData.lastName}
-                onChangeText={(text) => updateField('lastName', text)}
-                error={errors.lastName}
-                autoCapitalize="words"
-                style={styles.halfInput}
-              />
-            </View>
+                  {/* Personal Information */}
+                  <View style={styles.row}>
+                    <TextInput
+                      label="First Name"
+                      value={values.firstName}
+                      onChangeText={handleChange('firstName')}
+                      onBlur={handleBlur('firstName')}
+                      error={touched.firstName && errors.firstName}
+                      autoCapitalize="words"
+                      style={styles.halfInput}
+                    />
+                    <View style={styles.spacer} />
+                    <TextInput
+                      label="Last Name"
+                      value={values.lastName}
+                      onChangeText={handleChange('lastName')}
+                      onBlur={handleBlur('lastName')}
+                      error={touched.lastName && errors.lastName}
+                      autoCapitalize="words"
+                      style={styles.halfInput}
+                    />
+                  </View>
 
-            <TextInput
-              label="Email"
-              value={formData.email}
-              onChangeText={(text) => updateField('email', text)}
-              error={errors.email}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              textContentType="emailAddress"
-            />
-
-            <TextInput
-              label="Phone Number"
-              value={formData.phone}
-              onChangeText={(text) => updateField('phone', text)}
-              error={errors.phone}
-              helperText="Format: +251911234567"
-              keyboardType="phone-pad"
-              autoComplete="tel"
-              textContentType="telephoneNumber"
-            />
-
-            <TextInput
-              label="Password"
-              value={formData.password}
-              onChangeText={(text) => updateField('password', text)}
-              error={errors.password}
-              helperText="Min. 8 characters with uppercase, lowercase, and number"
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoComplete="password-new"
-              textContentType="newPassword"
-              right={
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <MaterialCommunityIcons
-                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={theme.colors.text.secondary}
+                  <TextInput
+                    label="Email"
+                    value={values.email}
+                    onChangeText={handleChange('email')}
+                    onBlur={handleBlur('email')}
+                    error={touched.email && errors.email}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoComplete="email"
+                    textContentType="emailAddress"
                   />
-                </TouchableOpacity>
-              }
-            />
+                  {touched.email && errors.email && (
+                    <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.email}</Text>
+                  )}
 
-            <TextInput
-              label="Confirm Password"
-              value={formData.confirmPassword}
-              onChangeText={(text) => updateField('confirmPassword', text)}
-              error={errors.confirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              autoCapitalize="none"
-              autoComplete="password-new"
-              textContentType="newPassword"
-              right={
-                <TouchableOpacity
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.eyeIcon}
-                >
-                  <MaterialCommunityIcons
-                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                    size={20}
-                    color={theme.colors.text.secondary}
+                  <TextInput
+                    label="Phone Number"
+                    value={values.phone}
+                    onChangeText={handleChange('phone')}
+                    onBlur={handleBlur('phone')}
+                    error={touched.phone && errors.phone}
+                    helperText="Format: +251911234567"
+                    keyboardType="phone-pad"
+                    autoComplete="tel"
+                    textContentType="telephoneNumber"
                   />
-                </TouchableOpacity>
-              }
-            />
+                  {touched.phone && errors.phone && (
+                    <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.phone}</Text>
+                  )}
 
-            <Button
-              title="Create Account"
-              onPress={handleSignUp}
-              loading={isLoading}
-              disabled={isLoading}
-              size="lg"
-              style={styles.signUpButton}
-            />
+                  <TextInput
+                    label="Password"
+                    value={values.password}
+                    onChangeText={handleChange('password')}
+                    onBlur={handleBlur('password')}
+                    error={touched.password && errors.password}
+                    helperText="Min. 8 characters with uppercase, lowercase, and number"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password-new"
+                    textContentType="newPassword"
+                    right={
+                      <TouchableOpacity
+                        onPress={() => setShowPassword(!showPassword)}
+                        style={styles.eyeIcon}
+                      >
+                        <MaterialCommunityIcons
+                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={20}
+                          color={theme.colors.text.secondary}
+                        />
+                      </TouchableOpacity>
+                    }
+                  />
+                  {touched.password && errors.password && (
+                    <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.password}</Text>
+                  )}
+
+                  <TextInput
+                    label="Confirm Password"
+                    value={values.confirmPassword}
+                    onChangeText={handleChange('confirmPassword')}
+                    onBlur={handleBlur('confirmPassword')}
+                    error={touched.confirmPassword && errors.confirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                    autoComplete="password-new"
+                    textContentType="newPassword"
+                    right={
+                      <TouchableOpacity
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={styles.eyeIcon}
+                      >
+                        <MaterialCommunityIcons
+                          name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={20}
+                          color={theme.colors.text.secondary}
+                        />
+                      </TouchableOpacity>
+                    }
+                  />
+                  {touched.confirmPassword && errors.confirmPassword && (
+                    <Text style={[styles.errorText, { color: theme.colors.error }]}>{errors.confirmPassword}</Text>
+                  )}
+
+                  <Button
+                    title="Create Account"
+                    onPress={handleSubmit}
+                    loading={isLoading}
+                    disabled={isLoading}
+                    size="lg"
+                    style={styles.signUpButton}
+                  />
+                </>
+              )}
+            </Formik>
           </View>
 
           {/* Footer */}

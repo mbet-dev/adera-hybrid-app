@@ -21,6 +21,13 @@ export const ThemeProvider = ({ children, forceLightMode = false, initialMode = 
     setMode(initialMode);
   }, [initialMode]);
 
+  // Listen for external mode changes (from preferences)
+  useEffect(() => {
+    if (onModeChange) {
+      onModeChange(mode);
+    }
+  }, [mode, onModeChange]);
+
   const resolvedMode = forceLightMode ? 'light' : mode;
   const isDark = resolvedMode === 'dark' || (resolvedMode === 'system' && systemScheme === 'dark');
   const palette = isDark ? colors.dark : colors.light;

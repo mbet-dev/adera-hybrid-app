@@ -12,13 +12,15 @@ import { SafeArea, Card, useTheme } from '@adera/ui';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@adera/auth';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
-const CustomerDashboard = ({ navigation }) => {
+const CustomerDashboard = () => {
   const theme = useTheme();
   const { signOut } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation();
   const [walletBalance, setWalletBalance] = useState(1250.50);
 
   console.log('[CustomerDashboard] Rendering...');
@@ -97,6 +99,12 @@ const CustomerDashboard = ({ navigation }) => {
 
   return (
     <SafeArea edges={['top']}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20 }}>
+        <Text style={{ color: theme.colors.text.primary }}>Customer Dashboard</Text>
+        <TouchableOpacity onPress={() => signOut(navigation)}>
+          <Text style={{ color: theme.colors.primary }}>Sign Out</Text>
+        </TouchableOpacity>
+      </View>
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={styles.scrollContent}
