@@ -7,25 +7,47 @@ export const AuthContext = createContext();
 // Demo mode enabled for development (Supabase not configured yet)
 const isDemoMode = process.env.EXPO_PUBLIC_ENABLE_DEMO_MODE === 'true';
 
+// Notification type constants
+const NOTIFICATION_TYPES = {
+  INFO: 'info',
+  SUCCESS: 'success',
+  WARNING: 'warning',
+  ERROR: 'error'
+};
+
 const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [authState, setAuthState] = useState(AuthState.LOADING);
+  const [notifications, setNotifications] = useState([]);
+
+  // Function to add a notification
+  const addNotification = (message, type = NOTIFICATION_TYPES.INFO, duration = 5000) => {
+    const id = Date.now().toString();
+    setNotifications(prev => [...prev, { id, message, type, duration }]);
+    setTimeout(() => {
+      dismissNotification(id);
+    }, duration);
+    return id;
+  };
+
+  // Function to dismiss a notification
+  const dismissNotification = (id) => {
+    setNotifications(prev => prev.filter(notif => notif.id !== id));
+  };
 
   useEffect(() => {
     let isMounted = true;
 
     const initializeAuth = async () => {
       if (isDemoMode) {
-        // Demo mode - skip authentication for development
         console.log('Running in demo mode - authentication disabled');
         if (isMounted) setAuthState(AuthState.UNAUTHENTICATED);
         return;
       }
 
       try {
-        // Production mode - real Supabase authentication
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
@@ -34,8 +56,8 @@ const AuthProvider = ({ children }) => {
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            // Consider user authenticated immediately; fetch profile in the background
             setAuthState(AuthState.AUTHENTICATED);
+            setUserProfile({ id: session.user.id, role: 'customer' });
             fetchUserProfile(session.user.id);
           } else {
             setAuthState(AuthState.UNAUTHENTICATED);
@@ -49,7 +71,6 @@ const AuthProvider = ({ children }) => {
 
     initializeAuth();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event);
@@ -59,12 +80,14 @@ const AuthProvider = ({ children }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Mark authenticated immediately; profile may follow shortly
           setAuthState(AuthState.AUTHENTICATED);
-          // Pass user metadata if available from the session object, useful for post-signup flow
+          setUserProfile({ id: session.user.id, role: 'customer' });
           await ensureUserProfileExists(session.user, session.user.user_metadata);
           await touchLastLogin(session.user.id);
           fetchUserProfile(session.user.id);
+          if (event === 'SIGNED_IN') {
+            addNotification(`Welcome back! You've signed in successfully.`, NOTIFICATION_TYPES.SUCCESS);
+          }
         } else {
           setUserProfile(null);
           setAuthState(AuthState.UNAUTHENTICATED);
@@ -153,33 +176,96 @@ const AuthProvider = ({ children }) => {
     }
 
     try {
-      // Do not drop global auth loading here; keep UI authenticated while fetching profile
-      
-      const { data, error } = await supabase
-        .from('users')
+      // Try to get profile from public.profiles first (new system)
+      let { data: profile, error: profileError } = await supabase
+        .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        
-        // If user profile doesn't exist and this is first retry, wait and try again
-        // This handles the case where email confirmation trigger hasn't run yet
-        if (error.code === 'PGRST116' && retryCount < 3) {
-          console.log(`User profile not found, retrying in ${(retryCount + 1) * 2} seconds...`);
+      if (profileError && profileError.code !== 'PGRST116') {
+        console.error('Error fetching user profile from profiles:', profileError);
+      }
+
+      if (!profile) {
+        // Fallback to legacy users table
+        const { data: legacyProfile, error: legacyError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        if (legacyError && legacyError.code !== 'PGRST116') {
+          console.error('Error fetching user profile from users:', legacyError);
+        }
+
+        if (legacyProfile) {
+          profile = {
+            id: legacyProfile.id,
+            email: legacyProfile.email,
+            full_name: `${legacyProfile.first_name || ''} ${legacyProfile.last_name || ''}`.trim(),
+            phone: legacyProfile.phone,
+            role: legacyProfile.role || 'customer',
+            language: legacyProfile.language || 'en',
+            avatar_url: legacyProfile.avatar_url,
+            email_confirmed: legacyProfile.is_verified,
+            phone_confirmed: false
+          };
+
+          // Best-effort: try to migrate this profile to new system
+          try {
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .upsert(profile)
+              .select()
+              .single();
+
+            if (!insertError) {
+              console.log('[AuthProvider] Successfully migrated user profile to new system');
+            }
+          } catch (e) {
+            console.warn('[AuthProvider] Profile migration attempt failed:', e);
+          }
+        }
+      }
+
+      if (!profile) {
+        // If still no profile and within retry limit, wait and retry
+        // This handles race conditions with auth triggers
+        if (retryCount < 3) {
+          console.log(`Profile not found, retrying in ${(retryCount + 1) * 2} seconds...`);
           setTimeout(() => {
             fetchUserProfile(userId, retryCount + 1);
           }, (retryCount + 1) * 2000);
           return;
         }
-        // Keep user authenticated despite profile error; set minimal profile
-        setUserProfile({ id: userId, role: 'customer' });
-        return;
+        // Last resort: create minimal profile
+        profile = { 
+          id: userId,
+          role: 'customer',
+          email: user?.email,
+          language: 'en'
+        };
+        
+        // Try to create this minimal profile
+        try {
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .upsert(profile)
+            .select()
+            .single();
+
+          if (!insertError) {
+            console.log('[AuthProvider] Created minimal profile for user');
+          }
+        } catch (e) {
+          console.warn('[AuthProvider] Minimal profile creation failed:', e);
+        }
       }
 
-      setUserProfile(data);
+      setUserProfile(profile);
       setAuthState(AuthState.AUTHENTICATED);
+
     } catch (error) {
       console.error('Error in fetchUserProfile:', error);
       
@@ -191,8 +277,14 @@ const AuthProvider = ({ children }) => {
         }, (retryCount + 1) * 3000);
         return;
       }
-      // Keep user authenticated; show minimal profile
-      setUserProfile(prev => prev || { id: userId, role: 'customer' });
+      
+      // Keep user authenticated with minimal profile
+      setUserProfile(prev => prev || { 
+        id: userId,
+        role: 'customer',
+        email: user?.email,
+        language: 'en'
+      });
     }
   };
 
@@ -291,24 +383,68 @@ const AuthProvider = ({ children }) => {
     // After successful signup, immediately try to create the user profile as a fallback
     if (data.user) {
       await ensureUserProfileExists(data.user, userData);
+      // Add notification for successful signup and email sent
+      addNotification(`Account created! A confirmation email has been sent to ${email}.`, NOTIFICATION_TYPES.INFO, 7000);
     }
     
     return data;
   };
 
-  const signOut = async (navigation) => {
-    if (isDemoMode) {
-      // Demo logout
+  const signOut = async () => {
+    try {
+      if (isDemoMode) {
+        // Demo logout
+        setUser(null);
+        setUserProfile(null);
+        setSession(null);
+        setAuthState(AuthState.UNAUTHENTICATED);
+        console.log('[AuthProvider] Demo sign out successful');
+        return { success: true };
+      }
+
+      // Clear ALL local storage and state first
+      try {
+        // Clear any app-specific storage
+        localStorage.removeItem('adera:app_state');
+        localStorage.removeItem('adera:theme');
+        localStorage.removeItem('adera:preferences');
+        // Clear any session storage
+        sessionStorage.clear();
+      } catch (e) {
+        console.warn('[AuthProvider] Error clearing storage:', e);
+      }
+
+      // Clear state
       setUser(null);
       setUserProfile(null);
       setSession(null);
       setAuthState(AuthState.UNAUTHENTICATED);
-      return;
-    }
 
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-    navigation.navigate('Login');
+      // Then sign out from Supabase - this should clear auth storage
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('[AuthProvider] Sign out error:', error);
+        // Even if Supabase sign-out fails, local state is cleared
+        return { success: true, warning: error.message };
+      }
+
+      // Force reload the window in web context to ensure clean state
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
+
+      console.log('[AuthProvider] Sign out successful');
+      return { success: true };
+    } catch (error) {
+      console.error('[AuthProvider] Sign out exception:', error);
+      // Ensure local state is cleared even on exception
+      setUser(null);
+      setUserProfile(null);
+      setSession(null);
+      setAuthState(AuthState.UNAUTHENTICATED);
+      return { success: true, warning: error.message };
+    }
   };
 
   const updateProfile = async (updates) => {
@@ -345,6 +481,8 @@ const AuthProvider = ({ children }) => {
     });
 
     if (error) throw error;
+    // Add notification for password reset email sent
+    addNotification(`Password reset email sent to ${email}. Check your inbox for instructions.`, NOTIFICATION_TYPES.INFO, 7000);
     return { success: true };
   };
 
@@ -471,6 +609,8 @@ const AuthProvider = ({ children }) => {
     }
     
     console.log('Confirmation email sent successfully');
+    // Add notification for email resent
+    addNotification(`Confirmation email resent to ${email}. Check your inbox.`, NOTIFICATION_TYPES.INFO, 7000);
     return { success: true };
   };
 
@@ -483,6 +623,8 @@ const AuthProvider = ({ children }) => {
     isLoading: authState === AuthState.LOADING,
     isDemoMode,
     role: userProfile?.role || null,
+    notifications,
+    dismissNotification,
     // Auth methods
     signIn,
     signUp,
