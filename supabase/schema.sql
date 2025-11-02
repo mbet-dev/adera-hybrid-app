@@ -5,14 +5,112 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
 
--- Create custom types
-CREATE TYPE user_role AS ENUM ('customer', 'partner', 'driver', 'staff', 'admin');
-CREATE TYPE parcel_status AS ENUM ('created', 'dropoff', 'in_transit_to_hub', 'at_hub', 'dispatched', 'at_pickup_partner', 'delivered');
-CREATE TYPE payment_method AS ENUM ('telebirr', 'chapa', 'arifpay', 'wallet', 'cod');
-CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'completed', 'failed', 'refunded');
+-- Drop existing tables if they exist
+DROP TABLE IF EXISTS notifications CASCADE;
+DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS parcel_events CASCADE;
+DROP TABLE IF EXISTS parcels CASCADE;
+DROP TABLE IF EXISTS products CASCADE;
+DROP TABLE IF EXISTS shops CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
 
--- Users table with role-based access
-CREATE TABLE users (
+-- Create custom types
+CREATE OR REPLACE FUNCTION create_user_role_if_not_exists()
+RETURNS void AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+    CREATE TYPE user_role AS ENUM ('customer', 'partner', 'driver', 'staff', 'admin');
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_user_role_if_not_exists();
+
+CREATE OR REPLACE FUNCTION create_parcel_status_if_not_exists()
+RETURNS void AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'parcel_status') THEN
+    CREATE TYPE parcel_status AS ENUM ('created', 'dropoff', 'in_transit_to_hub', 'at_hub', 'dispatched', 'at_pickup_partner', 'delivered');
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_parcel_status_if_not_exists();
+
+CREATE OR REPLACE FUNCTION create_payment_method_if_not_exists()
+RETURNS void AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method') THEN
+    CREATE TYPE payment_method AS ENUM ('telebirr', 'chapa', 'arifpay', 'wallet', 'cod');
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_payment_method_if_not_exists();
+
+CREATE OR REPLACE FUNCTION create_payment_status_if_not_exists()
+RETURNS void AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status') THEN
+    CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'completed', 'failed', 'refunded');
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_payment_status_if_not_exists();
+
+CREATE OR REPLACE FUNCTION create_parcel_status_if_not_exists()
+RETURNS void AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'parcel_status') THEN
+    CREATE TYPE parcel_status AS ENUM ('created', 'dropoff', 'in_transit_to_hub', 'at_hub', 'dispatched', 'at_pickup_partner', 'delivered');
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_parcel_status_if_not_exists();
+
+CREATE OR REPLACE FUNCTION create_payment_method_if_not_exists()
+RETURNS void AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_method') THEN
+    CREATE TYPE payment_method AS ENUM ('telebirr', 'chapa', 'arifpay', 'wallet', 'cod');
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_payment_method_if_not_exists();
+
+CREATE OR REPLACE FUNCTION create_payment_status_if_not_exists()
+RETURNS void AS $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'payment_status') THEN
+    CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'completed', 'failed', 'refunded');
+  END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_payment_status_if_not_exists();
+
+-- Create public.profiles table for user profile management
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT,
+  phone TEXT,
+  role user_role NOT NULL DEFAULT 'customer',
+  language TEXT DEFAULT 'en',
+  avatar_url TEXT,
+  email_confirmed BOOLEAN DEFAULT false,
+  phone_confirmed BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Users table with role-based access (legacy, consider migrating to profiles)
+CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   phone TEXT UNIQUE,
@@ -45,11 +143,11 @@ CREATE TABLE users (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   last_login_at TIMESTAMP WITH TIME ZONE
 );
-
 -- Partner shops
-CREATE TABLE shops (
+CREATE TABLE IF NOT EXISTS shops (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  
   
   -- Shop information
   name TEXT NOT NULL,
@@ -82,11 +180,11 @@ CREATE TABLE shops (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Products for e-commerce
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  
   
   -- Product information
   name TEXT NOT NULL,
@@ -126,11 +224,11 @@ CREATE TABLE products (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Parcels for logistics
-CREATE TABLE parcels (
+CREATE TABLE IF NOT EXISTS parcels (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tracking_id TEXT UNIQUE NOT NULL,
+  
   
   -- Parties involved
   sender_id UUID NOT NULL REFERENCES users(id),
@@ -178,11 +276,11 @@ CREATE TABLE parcels (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours')
 );
-
 -- Parcel event logs for tracking
-CREATE TABLE parcel_events (
+CREATE TABLE IF NOT EXISTS parcel_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   parcel_id UUID NOT NULL REFERENCES parcels(id) ON DELETE CASCADE,
+  
   
   -- Event details
   status INTEGER NOT NULL,
@@ -205,11 +303,11 @@ CREATE TABLE parcel_events (
   
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Orders for e-commerce
-CREATE TABLE orders (
+CREATE TABLE IF NOT EXISTS orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_number TEXT UNIQUE NOT NULL,
+  
   
   -- Customer information
   customer_id UUID NOT NULL REFERENCES users(id),
@@ -245,11 +343,11 @@ CREATE TABLE orders (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   delivered_at TIMESTAMP WITH TIME ZONE
 );
-
 -- Order items
-CREATE TABLE order_items (
+CREATE TABLE IF NOT EXISTS order_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  
   product_id UUID NOT NULL REFERENCES products(id),
   
   -- Item details at time of order
@@ -262,10 +360,10 @@ CREATE TABLE order_items (
   
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
 -- Payments table
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  
   
   -- Reference
   parcel_id UUID REFERENCES parcels(id),
@@ -287,11 +385,11 @@ CREATE TABLE payments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   completed_at TIMESTAMP WITH TIME ZONE
 );
-
 -- Notifications
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  
   
   -- Notification content
   title TEXT NOT NULL,
@@ -314,51 +412,52 @@ CREATE TABLE notifications (
 );
 
 -- Create indexes for better performance
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_phone ON users(phone);
-CREATE INDEX idx_users_role ON users(role);
-CREATE INDEX idx_users_location ON users USING GIST(location);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_location ON users USING GIST(location);
 
-CREATE INDEX idx_shops_owner_id ON shops(owner_id);
-CREATE INDEX idx_shops_location ON shops USING GIST(location);
-CREATE INDEX idx_shops_category ON shops(category);
-CREATE INDEX idx_shops_active ON shops(is_active);
+CREATE INDEX IF NOT EXISTS idx_shops_owner_id ON shops(owner_id);
+CREATE INDEX IF NOT EXISTS idx_shops_location ON shops USING GIST(location);
+CREATE INDEX IF NOT EXISTS idx_shops_category ON shops(category);
+CREATE INDEX IF NOT EXISTS idx_shops_active ON shops(is_active);
 
-CREATE INDEX idx_products_shop_id ON products(shop_id);
-CREATE INDEX idx_products_category ON products(category);
-CREATE INDEX idx_products_available ON products(is_available);
+CREATE INDEX IF NOT EXISTS idx_products_shop_id ON products(shop_id);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_available ON products(is_available);
 
-CREATE INDEX idx_parcels_tracking_id ON parcels(tracking_id);
-CREATE INDEX idx_parcels_sender_id ON parcels(sender_id);
-CREATE INDEX idx_parcels_status ON parcels(status);
-CREATE INDEX idx_parcels_created_at ON parcels(created_at);
+CREATE INDEX IF NOT EXISTS idx_parcels_tracking_id ON parcels(tracking_id);
+CREATE INDEX IF NOT EXISTS idx_parcels_sender_id ON parcels(sender_id);
+CREATE INDEX IF NOT EXISTS idx_parcels_status ON parcels(status);
+CREATE INDEX IF NOT EXISTS idx_parcels_created_at ON parcels(created_at);
 
-CREATE INDEX idx_parcel_events_parcel_id ON parcel_events(parcel_id);
-CREATE INDEX idx_parcel_events_event_time ON parcel_events(event_time);
+CREATE INDEX IF NOT EXISTS idx_parcel_events_parcel_id ON parcel_events(parcel_id);
+CREATE INDEX IF NOT EXISTS idx_parcel_events_event_time ON parcel_events(event_time);
 
-CREATE INDEX idx_orders_customer_id ON orders(customer_id);
-CREATE INDEX idx_orders_shop_id ON orders(shop_id);
-CREATE INDEX idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON orders(customer_id);
+CREATE INDEX IF NOT EXISTS idx_orders_shop_id ON orders(shop_id);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 
-CREATE INDEX idx_payments_user_id ON payments(user_id);
-CREATE INDEX idx_payments_status ON payments(payment_status);
+CREATE INDEX IF NOT EXISTS idx_payments_user_id ON payments(user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(payment_status);
 
-CREATE INDEX idx_notifications_user_id ON notifications(user_id);
-CREATE INDEX idx_notifications_unread ON notifications(user_id, is_read) WHERE is_read = false;
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(user_id, is_read) WHERE is_read = false;
+
 
 -- Row Level Security (RLS) Policies
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE shops ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE parcels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS shops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS parcels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE parcel_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
 -- Users can see their own data
 CREATE POLICY users_own_data ON users FOR ALL USING (auth.uid() = id);
+CREATE POLICY users_supabase_auth_admin_insert ON users FOR INSERT WITH CHECK (TRUE);
 
 -- Shops: owners can manage, others can view active shops
 CREATE POLICY shops_owner_full_access ON shops FOR ALL USING (owner_id = auth.uid());
@@ -432,15 +531,107 @@ END;
 $$ language 'plpgsql';
 
 -- Apply updated_at triggers
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users 
+CREATE OR REPLACE TRIGGER update_users_updated_at BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_shops_updated_at BEFORE UPDATE ON shops 
+CREATE OR REPLACE TRIGGER update_shops_updated_at BEFORE UPDATE ON shops
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products 
+CREATE OR REPLACE TRIGGER update_products_updated_at BEFORE UPDATE ON products
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_parcels_updated_at BEFORE UPDATE ON parcels 
+CREATE OR REPLACE TRIGGER update_parcels_updated_at BEFORE UPDATE ON parcels
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders 
+CREATE OR REPLACE TRIGGER update_orders_updated_at BEFORE UPDATE ON orders
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments 
+CREATE OR REPLACE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger function to create/update profile when auth.users changes
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS TRIGGER AS $$
+DECLARE
+  meta jsonb;
+  default_role text := 'customer';
+  user_role text;
+  user_full_name text;
+  user_phone text;
+  user_lang text;
+  avatar text;
+BEGIN
+  -- Get metadata (can be null)
+  meta := coalesce(new.raw_user_meta, new.user_metadata)::jsonb;
+
+  -- Extract and normalize values with fallbacks
+  user_role := coalesce(
+    nullif((meta->>'role')::text,''),
+    default_role
+  );
+  user_full_name := coalesce(
+    nullif(meta->>'full_name',''), 
+    nullif(new.user_name,''), 
+    nullif(new.email,'')
+  );
+  user_phone := coalesce(
+    nullif(new.phone,''), 
+    nullif(meta->>'phone','')
+  );
+  user_lang := coalesce(
+    nullif(meta->>'language',''), 
+    'en'
+  );
+  avatar := coalesce(
+    nullif(meta->>'avatar_url',''),
+    nullif(meta->>'avatar','')
+  );
+
+  -- Handle existing profile (update missing fields)
+  IF EXISTS(SELECT 1 FROM public.profiles WHERE id = new.id) THEN
+    UPDATE public.profiles SET
+      email = coalesce(public.profiles.email, new.email),
+      full_name = coalesce(public.profiles.full_name, user_full_name),
+      phone = coalesce(public.profiles.phone, user_phone),
+      role = coalesce(public.profiles.role, user_role),
+      language = coalesce(public.profiles.language, user_lang),
+      avatar_url = coalesce(public.profiles.avatar_url, avatar),
+      email_confirmed = coalesce(
+        public.profiles.email_confirmed, 
+        (new.email_confirmed_at IS NOT NULL)
+      ),
+      phone_confirmed = coalesce(public.profiles.phone_confirmed, false),
+      updated_at = NOW()
+    WHERE id = new.id;
+    RETURN new;
+  END IF;
+
+  -- Create new profile
+  INSERT INTO public.profiles (
+    id,
+    email,
+    full_name,
+    phone,
+    role,
+    language,
+    avatar_url,
+    email_confirmed,
+    phone_confirmed,
+    created_at
+  ) VALUES (
+    new.id,
+    new.email,
+    user_full_name,
+    user_phone,
+    user_role,
+    user_lang,
+    avatar,
+    (new.email_confirmed_at IS NOT NULL),
+    false,
+    NOW()
+  );
+
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger on auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_auth_user();
