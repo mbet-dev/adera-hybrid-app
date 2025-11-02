@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BottomNavigation } from '@adera/ui';
+import { AppBottomNavigation } from '@adera/ui';
 
 // Import Staff screens
 import StaffDashboard from '../screens/staff/StaffDashboard';
@@ -17,7 +17,7 @@ const StaffNavigator = () => {
     { key: 'profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
   ]);
 
-  const renderScene = BottomNavigation.SceneMap({
+  const renderScene = AppBottomNavigation.SceneMap({
     dashboard: StaffDashboard,
     parcels: ParcelOversight,
     support: Support,
@@ -25,7 +25,7 @@ const StaffNavigator = () => {
   });
 
   return (
-    <BottomNavigation
+    <AppBottomNavigation
       navigationState={{ index, routes }}
       onIndexChange={setIndex}
       renderScene={renderScene}

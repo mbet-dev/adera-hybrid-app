@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BottomNavigation } from '@adera/ui';
+import { AppBottomNavigation } from '@adera/ui';
 
 // Import Partner screens
 import PartnerDashboard from '../screens/partner/PartnerDashboard';
@@ -12,20 +12,22 @@ const PartnerNavigator = () => {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'dashboard', title: 'Dashboard', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'scan', title: 'Scan QR', focusedIcon: 'qrcode-scan', unfocusedIcon: 'qrcode-scan' },
+    { key: 'scan', title: 'Scan QR', focusedIcon: 'qrcode', unfocusedIcon: 'qrcode' },
     { key: 'parcels', title: 'Parcels', focusedIcon: 'package-variant', unfocusedIcon: 'package-variant-closed' },
+    { key: 'earnings', title: 'Earnings', focusedIcon: 'cash', unfocusedIcon: 'cash-multiple' },
     { key: 'profile', title: 'Profile', focusedIcon: 'account-circle', unfocusedIcon: 'account-circle-outline' },
   ]);
 
-  const renderScene = BottomNavigation.SceneMap({
+  const renderScene = AppBottomNavigation.SceneMap({
     dashboard: PartnerDashboard,
     scan: ScanQR,
     parcels: ParcelManagement,
+    earnings: Earnings,
     profile: PartnerProfile,
   });
 
   return (
-    <BottomNavigation
+    <AppBottomNavigation
       navigationState={{ index, routes }}
       onIndexChange={setIndex}
       renderScene={renderScene}

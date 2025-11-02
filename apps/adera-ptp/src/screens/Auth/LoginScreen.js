@@ -192,11 +192,10 @@ const LoginScreen = ({ navigation }) => {
       console.log('[LoginScreen] Biometric authentication result:', result);
 
       if (result.success) {
-        // For now, show a message that biometric login is not fully implemented
-        // In the future, this would retrieve stored credentials and sign in automatically
+        // TODO: Implement secure storage and retrieval of credentials for biometric login
         Alert.alert(
-          'Biometric Login',
-          'Biometric authentication successful! However, automatic login is not yet implemented. Please use email/password for now.',
+          'Feature Not Implemented',
+          'Biometric login is not yet fully implemented. Please use email and password to log in.',
           [{ text: 'OK' }]
         );
       } else {

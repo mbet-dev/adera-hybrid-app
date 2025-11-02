@@ -26,9 +26,11 @@ BEGIN
     SELECT id INTO existing_user FROM public.users WHERE id = NEW.id;
     
     IF existing_user IS NULL THEN
-      -- Create new user profile
+      -- Create new user profile with comprehensive fields
       INSERT INTO public.users (
-        id, email, phone, role, first_name, last_name, is_verified, is_active, created_at, updated_at
+        id, email, phone, role, first_name, last_name, is_verified, is_active, created_at, updated_at,
+        profile_picture, address, city, country, postal_code, date_of_birth, language_preference, 
+        notification_preference, account_status, last_login
       ) VALUES (
         NEW.id,
         NEW.email,
@@ -39,7 +41,17 @@ BEGIN
         false, -- Not verified on creation
         true,  -- Active by default
         NOW(),
-        NOW()
+        NOW(),
+        COALESCE(user_metadata->>'profile_picture', NULL),
+        COALESCE(user_metadata->>'address', NULL),
+        COALESCE(user_metadata->>'city', NULL),
+        COALESCE(user_metadata->>'country', NULL),
+        COALESCE(user_metadata->>'postal_code', NULL),
+        COALESCE(TO_DATE(user_metadata->>'date_of_birth', 'YYYY-MM-DD'), NULL),
+        COALESCE(user_metadata->>'language_preference', 'en'),
+        COALESCE(user_metadata->>'notification_preference', 'email'),
+        'pending',
+        NULL
       );
       
       -- Log the user creation
@@ -60,7 +72,9 @@ BEGIN
     -- First, ensure the user profile exists. If not, create it.
     -- This is a fallback for edge cases where the INSERT trigger might have failed.
     INSERT INTO public.users (
-      id, email, phone, role, first_name, last_name, is_verified, is_active, created_at, updated_at
+      id, email, phone, role, first_name, last_name, is_verified, is_active, created_at, updated_at,
+      profile_picture, address, city, country, postal_code, date_of_birth, language_preference, 
+      notification_preference, account_status, last_login
     ) VALUES (
       NEW.id,
       NEW.email,
@@ -71,11 +85,22 @@ BEGIN
       true,
       true,
       NOW(),
-      NOW()
+      NOW(),
+      COALESCE((NEW.raw_user_meta_data->>'profile_picture'), NULL),
+      COALESCE((NEW.raw_user_meta_data->>'address'), NULL),
+      COALESCE((NEW.raw_user_meta_data->>'city'), NULL),
+      COALESCE((NEW.raw_user_meta_data->>'country'), NULL),
+      COALESCE((NEW.raw_user_meta_data->>'postal_code'), NULL),
+      COALESCE(TO_DATE((NEW.raw_user_meta_data->>'date_of_birth'), 'YYYY-MM-DD'), NULL),
+      COALESCE((NEW.raw_user_meta_data->>'language_preference'), 'en'),
+      COALESCE((NEW.raw_user_meta_data->>'notification_preference'), 'email'),
+      'active',
+      NULL
     ) ON CONFLICT (id) DO UPDATE
     SET
       email = NEW.email,
       is_verified = true,
+      account_status = 'active',
       updated_at = NOW();
 
     -- Get user role for personalized welcome message

@@ -6,6 +6,8 @@ import {
   Dimensions,
   ScrollView,
   Animated,
+  Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
@@ -30,7 +32,7 @@ const slides = [
     title: 'Ethiopian Excellence',
     subtitle: 'Built for Local Needs',
     description: 'Designed specifically for Ethiopian culture, payments, and infrastructure.',
-    image: '🇪🇹',
+    image: Platform.OS === 'web' ? { uri: '/assets/flag-ethiopia.png' } : '🇪🇹',
   },
   {
     title: 'Let\'s Begin',
@@ -87,9 +89,13 @@ const OnboardingScreen = ({ onComplete }) => {
                   { backgroundColor: theme.colors.onPrimary + '1F' },
                 ]}
               >
-                <Text style={[styles.emoji, { color: theme.colors.onPrimary }]}>
-                  {slide.image}
-                </Text>
+                {typeof slide.image === 'string' ? (
+                  <Text style={[styles.emoji, { color: theme.colors.onPrimary }]}>
+                    {slide.image}
+                  </Text>
+                ) : (
+                  <Image source={slide.image} style={styles.flagImage} />
+                )}
               </View>
 
               <View style={styles.textContainer}>
@@ -191,6 +197,10 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 48,
+  },
+  flagImage: {
+    width: 60,
+    height: 60,
   },
   textContainer: {
     alignItems: 'center',

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BottomNavigation } from '@adera/ui';
+import { AppBottomNavigation } from '@adera/ui';
 
 // Import Customer screens
 import CustomerDashboard from '../screens/customer/CustomerDashboard';
@@ -12,15 +12,15 @@ const CustomerNavigator = () => {
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'dashboard', title: 'Dashboard', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
-    { key: 'create', title: 'Send', focusedIcon: 'send', unfocusedIcon: 'send' },
+    { key: 'create', title: 'Send', focusedIcon: 'send', unfocusedIcon: 'send-outline' },
     { key: 'track', title: 'Track', focusedIcon: 'map-marker', unfocusedIcon: 'map-marker-outline' },
-    { key: 'history', title: 'History', focusedIcon: 'history', unfocusedIcon: 'history' },
+    { key: 'history', title: 'History', focusedIcon: 'clock-outline', unfocusedIcon: 'clock-outline' },
     { key: 'profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
   ]);
 
   console.log('[CustomerNavigator] Rendering with index:', index);
 
-  const renderScene = BottomNavigation.SceneMap({
+  const renderScene = AppBottomNavigation.SceneMap({
     dashboard: CustomerDashboard,
     create: CreateParcel,
     track: TrackParcel,
@@ -28,10 +28,10 @@ const CustomerNavigator = () => {
     profile: Profile,
   });
 
-  console.log('[CustomerNavigator] Scene map created, rendering BottomNavigation');
+  console.log('[CustomerNavigator] Scene map created, rendering AppBottomNavigation');
 
   return (
-    <BottomNavigation
+    <AppBottomNavigation
       navigationState={{ index, routes }}
       onIndexChange={(newIndex) => {
         console.log('[CustomerNavigator] Tab changed to:', newIndex, routes[newIndex]?.title);

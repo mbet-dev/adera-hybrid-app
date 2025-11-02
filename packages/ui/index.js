@@ -12,8 +12,14 @@ export { default as LoadingScreen } from './src/LoadingScreen';
 export { default as Card } from './src/Card';
 export { default as AppBar } from './src/AppBar';
 export { default as BottomNavigation } from './src/BottomNavigation';
+export { default as AppBottomNavigation } from './src/AppBottomNavigation';
 export { default as StatusBadge } from './src/StatusBadge';
 export { default as ParcelCard } from './src/ParcelCard';
-export { default as DemoRoleSwitcher } from './src/DemoRoleSwitcher';
 export { default as colors } from './src/colors';
 export { default as typography } from './src/typography';
+export { default as ProfileScreen } from './src/ProfileScreen';
+
+// Export notification components from components subdirectory
+export * from './src/components/NotificationSnackbar';
+export * from './src/components/NotificationContainer';
+export { useProfileSettings } from './src/hooks/useProfileSettings';

@@ -4,8 +4,6 @@ import { AuthState, UserRole } from './types';
 
 export const AuthContext = createContext();
 
-// Demo mode enabled for development (Supabase not configured yet)
-const isDemoMode = process.env.EXPO_PUBLIC_ENABLE_DEMO_MODE === 'true';
 
 // Notification type constants
 const NOTIFICATION_TYPES = {
@@ -41,12 +39,6 @@ const AuthProvider = ({ children }) => {
     let isMounted = true;
 
     const initializeAuth = async () => {
-      if (isDemoMode) {
-        console.log('Running in demo mode - authentication disabled');
-        if (isMounted) setAuthState(AuthState.UNAUTHENTICATED);
-        return;
-      }
-
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
@@ -161,20 +153,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const fetchUserProfile = async (userId, retryCount = 0) => {
-    if (isDemoMode) {
-      // Demo profile - you can test different roles here
-      setUserProfile({
-        id: 'demo-user',
-        role: 'customer', // Change this to test: 'customer', 'partner', 'driver', 'staff', 'admin'
-        first_name: 'Demo',
-        last_name: 'User',
-        email: 'demo@adera.et',
-        business_name: 'Demo Business',
-      });
-      setAuthState(AuthState.AUTHENTICATED);
-      return;
-    }
-
     try {
       // Try to get profile from public.profiles first (new system)
       let { data: profile, error: profileError } = await supabase
@@ -289,14 +267,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const signIn = async (email, password) => {
-    if (isDemoMode) {
-      // Demo login - simulate success
-      const demoUser = { id: 'demo-user', email: 'demo@adera.et' };
-      setUser(demoUser);
-      await fetchUserProfile(demoUser.id);
-      return { user: demoUser };
-    }
-
     // First, try to refresh any existing session to ensure we have latest auth state
     try {
       await supabase.auth.refreshSession();
@@ -344,14 +314,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const signUp = async (email, password, userData = {}) => {
-    if (isDemoMode) {
-      // Demo signup - simulate success
-      const demoUser = { id: 'demo-user', email };
-      setUser(demoUser);
-      await fetchUserProfile(demoUser.id);
-      return { user: demoUser };
-    }
-
     // Determine redirect URL based on platform
     const getRedirectUrl = () => {
       // Allow overriding via env (paste the exact Expo URL, e.g., exp://192.168.1.11:8081)
@@ -392,16 +354,6 @@ const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
-      if (isDemoMode) {
-        // Demo logout
-        setUser(null);
-        setUserProfile(null);
-        setSession(null);
-        setAuthState(AuthState.UNAUTHENTICATED);
-        console.log('[AuthProvider] Demo sign out successful');
-        return { success: true };
-      }
-
       // Clear ALL local storage and state first
       try {
         // Clear any app-specific storage
@@ -429,11 +381,6 @@ const AuthProvider = ({ children }) => {
         return { success: true, warning: error.message };
       }
 
-      // Force reload the window in web context to ensure clean state
-      if (typeof window !== 'undefined') {
-        window.location.href = '/';
-      }
-
       console.log('[AuthProvider] Sign out successful');
       return { success: true };
     } catch (error) {
@@ -448,12 +395,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const updateProfile = async (updates) => {
-    if (isDemoMode) {
-      // Demo update
-      setUserProfile(prev => ({ ...prev, ...updates }));
-      return { ...userProfile, ...updates };
-    }
-
     if (!user) throw new Error('No user logged in');
 
     const { data, error } = await supabase
@@ -469,15 +410,10 @@ const AuthProvider = ({ children }) => {
   };
 
   const resetPassword = async (email) => {
-    if (isDemoMode) {
-      console.log('Demo mode: Password reset email would be sent to:', email);
-      return { success: true };
-    }
-
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: typeof window !== 'undefined' && window.location && window.location.origin
         ? `${window.location.origin}/reset-password`
-        : `${process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://demo.supabase.co'}/reset-password`,
+        : `${process.env.EXPO_PUBLIC_SUPABASE_URL}/reset-password`,
     });
 
     if (error) throw error;
@@ -487,11 +423,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const updatePassword = async (newPassword) => {
-    if (isDemoMode) {
-      console.log('Demo mode: Password would be updated');
-      return { success: true };
-    }
-
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -501,8 +432,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const refreshSession = async () => {
-    if (isDemoMode) return;
-
     const { data, error } = await supabase.auth.refreshSession();
     if (error) {
       console.error('Error refreshing session:', error);
@@ -514,11 +443,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const verifyOTP = async (phone, token) => {
-    if (isDemoMode) {
-      console.log('Demo mode: OTP verified for:', phone);
-      return { success: true };
-    }
-
     const { data, error } = await supabase.auth.verifyOtp({
       phone,
       token,
@@ -530,11 +454,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const sendOTP = async (phone) => {
-    if (isDemoMode) {
-      console.log('Demo mode: OTP would be sent to:', phone);
-      return { success: true };
-    }
-
     const { error } = await supabase.auth.signInWithOtp({
       phone,
     });
@@ -545,10 +464,6 @@ const AuthProvider = ({ children }) => {
 
 
   const checkEmailConfirmationStatus = async () => {
-    if (isDemoMode) {
-      return { confirmed: true };
-    }
-
     try {
       // First try to get current session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -573,11 +488,6 @@ const AuthProvider = ({ children }) => {
   };
 
   const resendConfirmationEmail = async (email) => {
-    if (isDemoMode) {
-      console.log('Demo mode: Confirmation email would be resent to:', email);
-      return { success: true };
-    }
-
     // Determine redirect URL based on platform
     const getRedirectUrl = () => {
       if (process.env.EXPO_PUBLIC_APP_URL) {
@@ -621,7 +531,6 @@ const AuthProvider = ({ children }) => {
     authState,
     isAuthenticated: authState === AuthState.AUTHENTICATED,
     isLoading: authState === AuthState.LOADING,
-    isDemoMode,
     role: userProfile?.role || null,
     notifications,
     dismissNotification,

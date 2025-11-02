@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { BottomNavigation } from '@adera/ui';
+import { AppBottomNavigation } from '@adera/ui';
 
 // Import Driver screens
 import DriverDashboard from '../screens/driver/DriverDashboard';
 import RouteMap from '../screens/driver/RouteMap';
 import TaskList from '../screens/driver/TaskList';
-import DriverEarnings from '../screens/driver/DriverEarnings';
+import DriverPerformance from '../screens/driver/DriverPerformance';
 import DriverProfile from '../screens/driver/DriverProfile';
 
 const DriverNavigator = () => {
@@ -13,19 +13,19 @@ const DriverNavigator = () => {
   const [routes] = useState([
     { key: 'dashboard', title: 'Dashboard', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
     { key: 'tasks', title: 'Tasks', focusedIcon: 'format-list-bulleted', unfocusedIcon: 'format-list-bulleted' },
-    { key: 'earnings', title: 'Earnings', focusedIcon: 'cash', unfocusedIcon: 'cash' },
+    { key: 'performance', title: 'Performance', focusedIcon: 'chart-line', unfocusedIcon: 'chart-line' },
     { key: 'profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
   ]);
 
-  const renderScene = BottomNavigation.SceneMap({
+  const renderScene = AppBottomNavigation.SceneMap({
     dashboard: DriverDashboard,
     tasks: TaskList,
-    earnings: DriverEarnings,
+    performance: DriverPerformance,
     profile: DriverProfile,
   });
 
   return (
-    <BottomNavigation
+    <AppBottomNavigation
       navigationState={{ index, routes }}
       onIndexChange={setIndex}
       renderScene={renderScene}

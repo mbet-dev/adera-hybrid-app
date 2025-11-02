@@ -43,8 +43,13 @@ function AppContent() {
     return <LoadingScreen message="Initializing Adera..." />;
   }
 
-  // If authenticated, show main app
+  // If authenticated, show main app only if role is determined
   if (isAuthenticated) {
+    if (role === null) {
+      // Role not yet determined, keep showing loading to prevent flicker
+      console.log('[AppContent] Authenticated but role not yet determined, waiting...');
+      return <LoadingScreen message="Loading user profile..." />;
+    }
     console.log('[AppContent] Authenticated, rendering AppNavigator with role:', role);
     return <AppNavigator />;
   }

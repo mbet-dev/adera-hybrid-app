@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      adera-ptp:
+        specifier: link:apps\adera-ptp
+        version: link:apps/adera-ptp
     devDependencies:
       '@types/node':
         specifier: ^20.0.0

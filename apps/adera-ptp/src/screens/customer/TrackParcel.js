@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   TextInput as RNTextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeArea, Card, Button, useTheme } from '@adera/ui';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -16,101 +17,109 @@ const TrackParcel = () => {
   const [trackingId, setTrackingId] = useState('');
   const [parcelData, setParcelData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [empty, setEmpty] = useState(false);
+  const abortRef = useRef(null);
 
-  // Mock parcel data for demonstration
-  const mockParcelData = {
-    trackingId: 'ADE20250110-3',
-    recipient: 'Beza Tesfaye',
-    recipientPhone: '+251 912 345 678',
-    sender: 'Alex Mengistu',
-    currentStatus: 'in_transit_to_hub',
-    statusLabel: 'In Transit to Hub',
-    estimatedDelivery: '2025-01-12',
-    timeline: [
-      {
-        id: 6,
-        status: 'delivered',
-        label: 'Delivered',
-        description: 'Parcel delivered to recipient',
-        timestamp: null,
-        completed: false,
-        icon: 'check-circle',
-      },
-      {
-        id: 5,
-        status: 'at_pickup_partner',
-        label: 'At Pickup Partner',
-        description: 'Parcel ready for pickup at Mexico Square Store',
-        timestamp: null,
-        completed: false,
-        icon: 'store',
-      },
-      {
-        id: 4,
-        status: 'dispatched',
-        label: 'Out for Delivery',
-        description: 'Driver dispatched to pickup location',
-        timestamp: null,
-        completed: false,
-        icon: 'truck-delivery',
-      },
-      {
-        id: 3,
-        status: 'at_hub',
-        label: 'At Sorting Hub',
-        description: 'Parcel sorted and processed at facility',
-        timestamp: '2025-01-10 14:30',
-        completed: true,
-        icon: 'package-variant-closed',
-      },
-      {
-        id: 2,
-        status: 'in_transit_to_hub',
-        label: 'In Transit to Hub',
-        description: 'Driver en route to sorting facility',
-        timestamp: '2025-01-10 11:15',
-        completed: true,
-        icon: 'truck-fast',
-        active: true,
-      },
-      {
-        id: 1,
-        status: 'dropoff',
-        label: 'At Dropoff Partner',
-        description: 'Parcel received at Bole Mini Market',
-        timestamp: '2025-01-10 09:00',
-        completed: true,
-        icon: 'store-check',
-      },
-      {
-        id: 0,
-        status: 'created',
-        label: 'Order Created',
-        description: 'Parcel order created and payment confirmed',
-        timestamp: '2025-01-10 08:30',
-        completed: true,
-        icon: 'package-variant',
-      },
-    ],
-  };
+  const isValidTrackingId = useMemo(() => {
+    // Example: ADE20250110-3 (ADE + date yyyymmdd + - + digits)
+    const re = /^ADE\d{8}-\d+$/i;
+    return re.test(trackingId.trim());
+  }, [trackingId]);
 
-  const handleTrack = async () => {
-    if (!trackingId.trim()) {
+  const safeParseTimeline = useCallback((timeline) => {
+    if (!Array.isArray(timeline)) return [];
+    return timeline
+      .filter(Boolean)
+      .map((e, i) => ({
+        id: e?.id ?? String(i),
+        timestamp: e?.timestamp ?? null,
+        completed: Boolean(e?.completed),
+        active: Boolean(e?.active),
+        status: e?.status ?? 'created',
+        icon: e?.icon ?? 'progress-clock',
+        label: e?.label ?? 'Update',
+        description: e?.description ?? '',
+      }));
+  }, []);
+
+  const fetchParcel = useCallback(async (code) => {
+    setIsLoading(true);
+    setError('');
+    setEmpty(false);
+
+    // Abort any in-flight request
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      // TODO: Replace with Supabase fetch. Simulate delay and response here.
+      await new Promise((resolve) => setTimeout(resolve, 800));
+
+      // Simulated example results
+      if (code.toUpperCase() === 'ADE20250110-3') {
+        const mock = {
+          currentStatus: 'dispatched',
+          statusLabel: 'Dispatched from Partner',
+          trackingId: code.toUpperCase(),
+          recipient: 'John Doe',
+          estimatedDelivery: new Date(Date.now() + 86400000).toISOString(),
+          timeline: [
+            { id: '1', timestamp: Date.now() - 3600e3 * 12, completed: true, active: false, status: 'created', icon: 'package-variant', label: 'Created', description: 'Parcel created' },
+            { id: '2', timestamp: Date.now() - 3600e3 * 6, completed: true, active: false, status: 'at_pickup_partner', icon: 'storefront', label: 'At Pickup Partner', description: 'Received by pickup partner' },
+            { id: '3', timestamp: Date.now() - 3600e3 * 1, completed: true, active: true, status: 'dispatched', icon: 'truck-fast', label: 'Dispatched', description: 'Left partner location' },
+            { id: '4', timestamp: null, completed: false, active: false, status: 'in_transit_to_hub', icon: 'transit-connection-variant', label: 'In Transit', description: 'En route to hub' },
+            { id: '5', timestamp: null, completed: false, active: false, status: 'at_hub', icon: 'warehouse', label: 'At Hub', description: 'Processing at hub' },
+            { id: '6', timestamp: null, completed: false, active: false, status: 'delivered', icon: 'home-check', label: 'Delivered', description: 'Delivered to recipient' },
+          ],
+        };
+        setParcelData({ ...mock, timeline: safeParseTimeline(mock.timeline) });
+        setEmpty(false);
+      } else {
+        setParcelData(null);
+        setEmpty(true);
+      }
+    } catch (e) {
+      if (e?.name === 'AbortError') return; // ignore aborts
+      setError('Failed to fetch tracking information. Please try again.');
+      setParcelData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [safeParseTimeline]);
+
+  const handleTrack = useCallback(() => {
+    const code = trackingId.trim();
+    if (!code) {
       Alert.alert('Required', 'Please enter a tracking ID');
       return;
     }
+    if (!isValidTrackingId) {
+      Alert.alert('Invalid', 'Tracking ID format looks incorrect. Example: ADE20250110-3');
+      return;
+    }
+    fetchParcel(code);
+  }, [trackingId, isValidTrackingId, fetchParcel]);
 
-    setIsLoading(true);
-    // TODO: Fetch from Supabase
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setParcelData(mockParcelData);
-    setIsLoading(false);
-  };
-
-  const handleClear = () => {
+  const handleClear = useCallback(() => {
     setTrackingId('');
     setParcelData(null);
-  };
+    setError('');
+    setEmpty(false);
+  }, []);
+
+  // Debounce manual typing to avoid spamming calls; we still trigger only on button press by default.
+  // This is prepared in case you later enable auto-search.
+  const debounceRef = useRef(null);
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -156,9 +165,14 @@ const TrackParcel = () => {
               onChangeText={setTrackingId}
               autoCapitalize="characters"
               autoCorrect={false}
+              accessibilityLabel="Tracking ID Input"
+              testID="tracking-id-input"
+              keyboardType="default"
+              returnKeyType="search"
+              onSubmitEditing={handleTrack}
             />
             {trackingId.length > 0 && (
-              <TouchableOpacity onPress={handleClear}>
+              <TouchableOpacity onPress={handleClear} accessibilityLabel="Clear Tracking ID" testID="clear-tracking-id">
                 <MaterialCommunityIcons
                   name="close-circle"
                   size={20}
@@ -167,12 +181,20 @@ const TrackParcel = () => {
               </TouchableOpacity>
             )}
           </View>
+          {!isValidTrackingId && trackingId.length > 0 && (
+            <Text style={{ color: theme.colors.error, marginTop: 4 }} accessibilityLabel="Invalid tracking id message">
+              Invalid tracking ID. Example: ADE20250110-3
+            </Text>
+          )}
           <Button
             title="Track"
             onPress={handleTrack}
             loading={isLoading}
             size="lg"
             style={styles.trackButton}
+            disabled={!isValidTrackingId || isLoading}
+            accessibilityLabel="Track Button"
+            testID="track-button"
           />
         </View>
 
@@ -186,6 +208,8 @@ const TrackParcel = () => {
               [{ text: 'OK' }]
             );
           }}
+          accessibilityLabel="Open QR Scanner (Coming Soon)"
+          testID="qr-placeholder"
         >
           <MaterialCommunityIcons
             name="qrcode-scan"
@@ -201,6 +225,44 @@ const TrackParcel = () => {
   );
 
   const renderParcelDetails = () => {
+    if (isLoading) {
+      return (
+        <View style={[styles.detailsSection, { alignItems: 'center', paddingVertical: 24 }]}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={{ marginTop: 8, color: theme.colors.text.secondary }}>Fetching tracking info…</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={[styles.detailsSection, { gap: 12 }]}
+          accessibilityLabel="Error Section"
+          testID="error-section"
+        >
+          <Card style={{ padding: 16, borderColor: theme.colors.error, borderWidth: 1 }}>
+            <Text style={{ color: theme.colors.error, fontWeight: '700', marginBottom: 6 }}>Error</Text>
+            <Text style={{ color: theme.colors.text.primary }}>{error}</Text>
+          </Card>
+          <Button title="Retry" onPress={handleTrack} leftIcon="reload" />
+        </View>
+      );
+    }
+
+    if (empty) {
+      return (
+        <View style={[styles.detailsSection, { gap: 12 }]} accessibilityLabel="Empty State" testID="empty-state">
+          <Card style={{ padding: 20, alignItems: 'center' }}>
+            <MaterialCommunityIcons name="package-variant" size={32} color={theme.colors.text.secondary} />
+            <Text style={{ marginTop: 8, color: theme.colors.text.primary, fontWeight: '700' }}>No parcel found</Text>
+            <Text style={{ marginTop: 4, color: theme.colors.text.secondary, textAlign: 'center' }}>
+              Please check the tracking ID and try again.
+            </Text>
+          </Card>
+        </View>
+      );
+    }
+
     if (!parcelData) return null;
 
     return (
@@ -340,17 +402,21 @@ const TrackParcel = () => {
                         fontWeight: event.active ? '700' : '600',
                       },
                     ]}
+                    numberOfLines={1}
                   >
                     {event.label}
                   </Text>
-                  <Text
-                    style={[
-                      styles.timelineDescription,
-                      { color: theme.colors.text.secondary },
-                    ]}
-                  >
-                    {event.description}
-                  </Text>
+                  {!!event.description && (
+                    <Text
+                      style={[
+                        styles.timelineDescription,
+                        { color: theme.colors.text.secondary },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {event.description}
+                    </Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -366,6 +432,8 @@ const TrackParcel = () => {
             }}
             variant="outline"
             leftIcon="chat"
+            accessibilityLabel="Contact Support"
+            testID="contact-support"
           />
           <Button
             title="Share Tracking"
@@ -374,6 +442,8 @@ const TrackParcel = () => {
             }}
             variant="outline"
             leftIcon="share-variant"
+            accessibilityLabel="Share Tracking"
+            testID="share-tracking"
           />
         </View>
       </View>

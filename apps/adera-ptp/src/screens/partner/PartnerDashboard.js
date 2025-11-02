@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { Text, FAB } from 'react-native-paper';
 import { AppBar, Card, SafeArea, StatusBadge, useTheme } from '@adera/ui';
 import { useAuth } from '@adera/auth';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 const PartnerDashboard = ({ navigation }) => {
   const theme = useTheme();
@@ -17,14 +17,67 @@ const PartnerDashboard = ({ navigation }) => {
   });
   const [recentActivity, setRecentActivity] = useState([]);
 
+  const insights = useMemo(() => ([
+    {
+      id: 'dwell-time',
+      label: 'Average dwell time',
+      value: '42m',
+      delta: '+8% vs last week',
+      icon: 'timer-outline',
+      tone: '#7C4DFF',
+    },
+    {
+      id: 'conversion',
+      label: 'Scan-to-pickup conversion',
+      value: '93%',
+      delta: '+3.1%',
+      icon: 'trending-up',
+      tone: '#26A69A',
+    },
+    {
+      id: 'wallet',
+      label: 'Wallet balance',
+      value: `${(stats.todayEarnings * 6).toLocaleString('en-ET')} ETB`,
+      delta: 'Auto payout in 2d',
+      icon: 'wallet-outline',
+      tone: '#EF6C00',
+    },
+  ]), [stats.todayEarnings]);
+
+  const appointments = useMemo(() => ([
+    {
+      id: 'slot-1',
+      title: 'Drop-off wave',
+      window: '08:30 - 09:15',
+      partner: 'Kazanchis Hub',
+      load: '12 parcels',
+      status: 'inbound',
+    },
+    {
+      id: 'slot-2',
+      title: 'Pickup dispatch',
+      window: '12:00 - 12:45',
+      partner: 'CMC Junction',
+      load: '18 parcels',
+      status: 'scheduled',
+    },
+    {
+      id: 'slot-3',
+      title: 'Evening reconciliation',
+      window: '19:00',
+      partner: 'Digital ledger sync',
+      load: 'Wallet + COD review',
+      status: 'due',
+    },
+  ]), []);
+
   useEffect(() => {
     loadDashboardData();
   }, []);
 
   const loadDashboardData = async () => {
     setRefreshing(true);
-    
-    // TODO: Load real data from Supabase
+    // Placeholder mocked payload until Supabase integration is wired
     setTimeout(() => {
       setRecentActivity([
         {
@@ -119,6 +172,31 @@ const PartnerDashboard = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Operational Insights */}
+        <View style={styles.section}>
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            Operational Insights
+          </Text>
+          <View style={styles.insightGrid}>
+            {insights.map(item => (
+              <Card key={item.id} style={styles.insightCard}>
+                <View style={[styles.insightIcon, { backgroundColor: `${item.tone}22` }]}> 
+                  <MaterialCommunityIcons name={item.icon} size={22} color={item.tone} />
+                </View>
+                <Text variant="labelMedium" style={[styles.insightLabel, { color: theme.colors.text.secondary }]}>
+                  {item.label}
+                </Text>
+                <Text variant="headlineSmall" style={[styles.insightValue, { color: theme.colors.text.primary }]}>
+                  {item.value}
+                </Text>
+                <Text variant="bodySmall" style={[styles.insightDelta, { color: item.tone }]}>
+                  {item.delta}
+                </Text>
+              </Card>
+            ))}
+          </View>
+        </View>
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text variant="titleLarge" style={styles.sectionTitle}>
@@ -140,12 +218,42 @@ const PartnerDashboard = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Scheduled Windows */}
+        <View style={styles.section}>
+          <Text variant="titleLarge" style={styles.sectionTitle}>
+            Today’s Control Windows
+          </Text>
+          {appointments.map(slot => (
+            <Card key={slot.id} style={styles.slotCard}>
+              <View style={styles.slotHeader}>
+                <View>
+                  <Text variant="titleMedium" style={styles.slotTitle}>{slot.title}</Text>
+                  <Text variant="bodySmall" style={[styles.slotWindow, { color: theme.colors.text.secondary }]}>{slot.window}</Text>
+                </View>
+                <StatusBadge
+                  tone={slot.status === 'due' ? 'warning' : slot.status === 'inbound' ? 'info' : 'success'}
+                  label={slot.status.toUpperCase()}
+                />
+              </View>
+              <View style={styles.slotMeta}>
+                <View style={styles.slotMetaItem}>
+                  <MaterialCommunityIcons name="storefront-outline" size={18} color={theme.colors.primary} />
+                  <Text variant="bodyMedium" style={styles.slotMetaText}>{slot.partner}</Text>
+                </View>
+                <View style={styles.slotMetaItem}>
+                  <MaterialCommunityIcons name="cube-scan" size={18} color={theme.colors.secondary} />
+                  <Text variant="bodyMedium" style={styles.slotMetaText}>{slot.load}</Text>
+                </View>
+              </View>
+            </Card>
+          ))}
+        </View>
+
         {/* Recent Activity */}
         <View style={styles.section}>
           <Text variant="titleLarge" style={styles.sectionTitle}>
             Recent Activity
           </Text>
-          
           {recentActivity.length > 0 ? (
             recentActivity.map(activity => (
               <ActivityCard key={activity.id} activity={activity} />
@@ -176,14 +284,14 @@ const PartnerDashboard = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <FAB
-        icon="qr-code"
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        onPress={openScanner}
-        label="Scan QR"
-      />
-    </SafeArea>
+    {/* Floating Action Button */}
+    <FAB
+      icon="qr-code"
+      style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+      onPress={openScanner}
+      label="Scan QR"
+    />
+  </SafeArea>
   );
 };
 
@@ -270,6 +378,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 16,
+    gap: 16,
   },
   welcomeCard: {
     padding: 20,
@@ -367,6 +476,66 @@ const styles = StyleSheet.create({
   emptySubtext: {
     marginTop: 4,
     textAlign: 'center',
+  },
+  insightGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  insightCard: {
+    flexBasis: '48%',
+    padding: 16,
+    borderRadius: 16,
+    gap: 8,
+  },
+  insightIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  insightLabel: {
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    fontSize: 12,
+  },
+  insightValue: {
+    fontWeight: '700',
+  },
+  insightDelta: {
+    fontWeight: '500',
+  },
+  slotCard: {
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 16,
+  },
+  slotHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  slotTitle: {
+    fontWeight: '700',
+  },
+  slotWindow: {
+    marginTop: 2,
+  },
+  slotMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  slotMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  slotMetaText: {
+    fontWeight: '500',
   },
   fab: {
     position: 'absolute',
