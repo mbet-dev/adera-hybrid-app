@@ -22,9 +22,9 @@ const AppNavigator = () => {
   }
 
   if (!isAuthenticated) {
-    console.log('[AppNavigator] Not authenticated, showing auth screen');
-    // This shouldn't happen as auth is handled in App.js
-    return <LoadingScreen message="Authenticating..." />;
+    console.log('[AppNavigator] Not authenticated, redirecting to onboarding');
+    // This will be handled by App.js navigation logic
+    return <LoadingScreen message="Redirecting..." />;
   }
 
   // Route based on user role

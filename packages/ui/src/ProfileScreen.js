@@ -8,7 +8,9 @@ import {
   Switch,
   Alert,
 } from 'react-native';
-import { SafeArea, Card, useTheme } from '@adera/ui';
+import SafeArea from './SafeArea';
+import Card from './Card';
+import { useTheme } from './ThemeProvider';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '@adera/auth';
 import { usePreferences } from '@adera/preferences';
@@ -27,7 +29,19 @@ const ProfileScreen = ({ user, menuItems, appVersion = 'v1.0.0' }) => {
         {
           text: 'Sign Out',
           style: 'destructive',
-          onPress: () => signOut(),
+          onPress: async () => {
+            try {
+              console.log('[ProfileScreen] handleSignOut: Starting sign out');
+              const result = await signOut();
+              console.log('[ProfileScreen] handleSignOut: Sign out result:', result);
+              if (!result?.success) {
+                Alert.alert('Error', 'Failed to sign out. Please try again.');
+              }
+            } catch (error) {
+              console.error('[ProfileScreen] handleSignOut: Error during sign out:', error);
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          },
         },
       ]
     );

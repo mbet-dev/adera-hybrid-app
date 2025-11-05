@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { Text, FAB } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import { CustomFAB } from '@adera/ui';
 import { AppBar, Card, SafeArea, StatusBadge, useTheme } from '@adera/ui';
 import { useAuth } from '@adera/auth';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -219,7 +220,7 @@ const DriverDashboard = ({ navigation }) => {
         </Card>
       </ScrollView>
 
-      <FAB
+      <CustomFAB
         icon="map"
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         onPress={() => navigation?.navigate?.('map')}
@@ -264,7 +265,18 @@ const styles = StyleSheet.create({
   routeSummary: { gap: 12 },
   routeMetric: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   routeMetricText: { fontWeight: '500' },
-  fab: { position: 'absolute', margin: 16, right: 0, bottom: 0 },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    elevation: 8,
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
 });
 
 export default DriverDashboard;

@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Button from './Button';
 import { useTheme } from './ThemeProvider';
+import FlagEthiopia from './components/FlagEthiopia';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,7 +33,7 @@ const slides = [
     title: 'Ethiopian Excellence',
     subtitle: 'Built for Local Needs',
     description: 'Designed specifically for Ethiopian culture, payments, and infrastructure.',
-    image: Platform.OS === 'web' ? { uri: '/assets/flag-ethiopia.png' } : '🇪🇹',
+    image: '🇪🇹',
   },
   {
     title: 'Let\'s Begin',
@@ -90,9 +91,13 @@ const OnboardingScreen = ({ onComplete }) => {
                 ]}
               >
                 {typeof slide.image === 'string' ? (
-                  <Text style={[styles.emoji, { color: theme.colors.onPrimary }]}>
-                    {slide.image}
-                  </Text>
+                  slide.image === '🇪🇹' && Platform.OS === 'web' ? (
+                    <FlagEthiopia width={80} height={56} />
+                  ) : (
+                    <Text style={[styles.emoji, { color: theme.colors.onPrimary }]}>
+                      {slide.image}
+                    </Text>
+                  )
                 ) : (
                   <Image source={slide.image} style={styles.flagImage} />
                 )}

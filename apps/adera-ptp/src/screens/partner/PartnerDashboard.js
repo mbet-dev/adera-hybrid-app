@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
-import { Text, FAB } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import { CustomFAB } from '@adera/ui';
 import { AppBar, Card, SafeArea, StatusBadge, useTheme } from '@adera/ui';
 import { useAuth } from '@adera/auth';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -285,7 +286,7 @@ const PartnerDashboard = ({ navigation }) => {
       </ScrollView>
 
     {/* Floating Action Button */}
-    <FAB
+    <CustomFAB
       icon="qr-code"
       style={[styles.fab, { backgroundColor: theme.colors.primary }]}
       onPress={openScanner}
@@ -542,6 +543,12 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
+    elevation: 8,
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });
 

@@ -15,9 +15,10 @@ import ThemelessLoadingScreen from './src/ThemelessLoadingScreen';
 function AppContent() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [showAppSelector, setShowAppSelector] = useState(false);
+  const [wasAuthenticated, setWasAuthenticated] = useState(false);
   const { isAuthenticated, isLoading, role } = useAuth();
 
-  console.log('[AppContent] Render:', { isAuthenticated, isLoading, role });
+  console.log('[AppContent] Render:', { isAuthenticated, isLoading, role, wasAuthenticated });
 
   const handleOnboardingComplete = () => {
     setHasCompletedOnboarding(true);
@@ -31,11 +32,30 @@ function AppContent() {
   };
 
   useEffect(() => {
-    if (!isAuthenticated && !isLoading) {
+    console.log('[AppContent] Auth state changed:', { isAuthenticated, isLoading, wasAuthenticated });
+    
+    // Track when user becomes authenticated
+    if (isAuthenticated && !wasAuthenticated) {
+      console.log('[AppContent] User authenticated, setting wasAuthenticated flag');
+      setWasAuthenticated(true);
+    }
+    
+    // Only reset and reload if user was previously authenticated and is now signed out
+    if (!isAuthenticated && !isLoading && wasAuthenticated) {
+      console.log('[AppContent] User signed out (was authenticated), resetting onboarding state');
       setHasCompletedOnboarding(false);
       setShowAppSelector(false);
+      setWasAuthenticated(false);
+      
+      // On web, force a reload to clear any cached state ONLY after actual sign out
+      if (typeof window !== 'undefined' && window.location) {
+        console.log('[AppContent] [WEB] Forcing page reload after sign out');
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      }
     }
-  }, [isAuthenticated, isLoading]);
+  }, [isAuthenticated, isLoading, wasAuthenticated]);
 
   // Show loading while auth is initializing
   if (isLoading) {
