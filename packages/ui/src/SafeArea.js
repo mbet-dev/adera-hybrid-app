@@ -5,18 +5,18 @@ import { useTheme } from './ThemeProvider';
 import { useSafeAreaPadding } from './useSafeAreaPadding';
 
 /**
- * SafeArea Component - AGGRESSIVE CONTAINMENT MODE
+ * SafeArea Component - Smart Safe Area Management
  * 
- * BULLETPROOF SafeAreaView wrapper that ensures NO content is EVER obscured by device UI.
+ * SafeAreaView wrapper that ensures content is not obscured by device UI or bottom navigation.
  * 
  * PROTECTION STRATEGY:
  * 1. SafeAreaView handles top/left/right edges automatically (status bar, notches, rounded corners)
- * 2. For withBottomNav=true: Manually adds generous bottom padding (nav bar height + device inset + buffer)
+ * 2. For withBottomNav=true: Adds bottom padding to clear the bottom navigation bar
  * 3. For withBottomNav=false: SafeAreaView handles bottom edge normally
  * 
  * CALCULATIONS:
  * - Top: Automatic via SafeAreaView (respects status bar, notch)
- * - Bottom with nav: 64px (nav base) + max(device inset, iOS:34px/Android:24px) + 24px buffer
+ * - Bottom with nav: 64px (nav base) + max(device inset, iOS:20px/Android:16px) + 8px buffer (~80-96px total)
  * - Bottom without nav: Automatic via SafeAreaView
  * - Left/Right: Automatic via SafeAreaView (respects rounded edges)
  * 
@@ -45,19 +45,17 @@ const SafeArea = ({
     ? edges.filter(edge => edge !== 'bottom')  // Let us handle bottom manually
     : edges;
 
-  // ULTRA AGGRESSIVE MODE: Calculate manual bottom padding for nav bar
+  // Calculate manual bottom padding for nav bar
   let manualBottomPadding = 0;
   
   if (withBottomNav && edges.includes('bottom')) {
-    // Match the BottomNavigation aggressive padding calculation
-    // Bottom nav bar height (64px) + device inset + aggressive buffer
+    // Bottom nav bar height (64px) + device inset + small buffer
     const deviceBottomInset = insets.bottom || 0;
-    const minimumPadding = Platform.OS === 'ios' ? 40 : 32;
-    const aggressivePadding = Math.max(deviceBottomInset, minimumPadding) + 20;
-    const totalNavSpace = deviceBottomInset + aggressivePadding + 64; // Include nav bar height
+    const minimumPadding = Platform.OS === 'ios' ? 20 : 16;
+    const safePadding = Math.max(deviceBottomInset, minimumPadding);
     
-    // Add extra buffer to push content up from nav
-    manualBottomPadding = totalNavSpace + 16; // 16px extra spacing above nav
+    // Total: nav bar height + safe padding + small buffer
+    manualBottomPadding = 64 + safePadding + 8; // Reduced from ~140-160px to ~80-96px
   }
 
   // Additional padding for inner container (only bottom when withBottomNav)

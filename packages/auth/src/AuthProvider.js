@@ -536,7 +536,11 @@ const AuthProvider = ({ children }) => {
         }
       }
       
-      // 1. Clear Supabase auth state first
+      // 1. Clear auth state and storage first
+      const { clearAuthState } = require('./clearAuthState');
+      await clearAuthState();
+      
+      // 2. Clear Supabase auth state
       console.log('[AuthProvider] Calling supabase.auth.signOut()');
       const { error: signOutError } = await supabase.auth.signOut();
       
@@ -545,35 +549,32 @@ const AuthProvider = ({ children }) => {
         throw signOutError;
       }
 
-      // 2. Clear storage based on platform
+      // 3. Clear app storage but preserve preferences
       try {
-        console.log('[AuthProvider] Clearing storage (preserving theme/language)');
+        console.log('[AuthProvider] Clearing app storage (preserving theme/language)');
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
           try {
-            // Web storage handling
             const preserveKeys = [
               '@adera/preferences/themeMode',
               '@adera/preferences/language',
               '@adera/lastUsedLocale'
             ];
             
-            // Save preferences from localStorage if available
             if (window.localStorage) {
-              // Get all keys
               const keys = [];
               for (let i = 0; i < localStorage.length; i++) {
                 keys.push(localStorage.key(i));
               }
               
-              // Remove all non-preserved keys
               keys.forEach(key => {
-                if (!preserveKeys.includes(key) && !key.startsWith('@supabase.auth.refreshToken')) {
+                if (!preserveKeys.includes(key) && 
+                    !key.startsWith('@supabase.auth.') && // Skip auth keys (already cleared)
+                    !key.includes('@adera/profile/')) {  // Skip profile keys (already cleared)
                   localStorage.removeItem(key);
                 }
               });
             }
 
-            // Clear sessionStorage if available
             if (window.sessionStorage) {
               sessionStorage.clear();
             }
@@ -581,26 +582,25 @@ const AuthProvider = ({ children }) => {
             console.warn('[AuthProvider] Web storage clearing error:', webStorageError);
           }
         } else {
-          // React Native AsyncStorage handling
-          try {
-            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-            const keys = await AsyncStorage.getAllKeys();
-            const preserveKeys = [
-              '@adera/preferences/themeMode',
-              '@adera/preferences/language'
-            ];
-            
-            // Get keys to remove (excluding preserved keys)
-            const keysToRemove = keys.filter(key => !preserveKeys.includes(key));
-            if (keysToRemove.length > 0) {
-              await AsyncStorage.multiRemove(keysToRemove);
-            }
-          } catch (asyncStorageError) {
-            console.warn('[AuthProvider] AsyncStorage clearing error:', asyncStorageError);
+          const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+          const keys = await AsyncStorage.getAllKeys();
+          const preserveKeys = [
+            '@adera/preferences/themeMode',
+            '@adera/preferences/language'
+          ];
+          
+          const keysToRemove = keys.filter(key => 
+            !preserveKeys.includes(key) && 
+            !key.startsWith('@supabase.auth.') && // Skip auth keys (already cleared)
+            !key.includes('@adera/profile/') // Skip profile keys (already cleared)
+          );
+          
+          if (keysToRemove.length > 0) {
+            await AsyncStorage.multiRemove(keysToRemove);
           }
         }
       } catch (storageError) {
-        console.warn('[AuthProvider] Storage clearing error:', storageError);
+        console.warn('[AuthProvider] App storage clearing error:', storageError);
       }
 
       // 3. Clear auth state
