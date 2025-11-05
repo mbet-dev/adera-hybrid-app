@@ -27,13 +27,38 @@ export const usePreferences = () => {
 export const PreferencesProvider = ({ children }) => {
   const [state, setState] = useState(defaultState);
   const [isReady, setIsReady] = useState(false);
+  
+  // Detect if we're on web platform
+  const isWeb = Platform.OS === 'web';
 
   const loadPreferences = useCallback(async () => {
     try {
-      const [storedTheme, storedLanguage] = await Promise.all([
-        AsyncStorage.getItem(THEME_KEY),
-        AsyncStorage.getItem(LANGUAGE_KEY),
-      ]);
+      console.log('[PreferencesProvider] Loading preferences, platform:', Platform.OS, 'isWeb:', isWeb);
+      
+      let storedTheme = null;
+      let storedLanguage = null;
+
+      // On web, use localStorage directly for better reliability
+      if (isWeb && typeof localStorage !== 'undefined') {
+        try {
+          storedTheme = localStorage.getItem(THEME_KEY);
+          storedLanguage = localStorage.getItem(LANGUAGE_KEY);
+          console.log('[PreferencesProvider] [WEB] Loaded from localStorage - theme:', storedTheme, 'language:', storedLanguage);
+        } catch (localStorageError) {
+          console.error('[PreferencesProvider] [WEB] localStorage failed:', localStorageError);
+        }
+      } else {
+        // On native, use AsyncStorage
+        try {
+          [storedTheme, storedLanguage] = await Promise.all([
+            AsyncStorage.getItem(THEME_KEY),
+            AsyncStorage.getItem(LANGUAGE_KEY),
+          ]);
+          console.log('[PreferencesProvider] [NATIVE] Loaded from AsyncStorage - theme:', storedTheme, 'language:', storedLanguage);
+        } catch (asyncError) {
+          console.error('[PreferencesProvider] [NATIVE] AsyncStorage failed:', asyncError);
+        }
+      }
 
       let biometricEnabled = false;
       try {
@@ -41,9 +66,11 @@ export const PreferencesProvider = ({ children }) => {
         if (secureAvailable) {
           const storedBiometric = await SecureStore.getItemAsync(BIOMETRIC_KEY);
           biometricEnabled = storedBiometric === 'true';
+          console.log('[PreferencesProvider] Biometric enabled:', biometricEnabled);
         }
       } catch (error) {
         // Ignore secure storage errors to keep preferences functional
+        console.warn('[PreferencesProvider] Secure storage unavailable:', error.message);
       }
 
       setState((prev) => ({
@@ -52,7 +79,9 @@ export const PreferencesProvider = ({ children }) => {
         language: storedLanguage || defaultState.language,
         biometricEnabled,
       }));
+      console.log('[PreferencesProvider] Preferences loaded successfully');
     } catch (error) {
+      console.error('[PreferencesProvider] Error loading preferences:', error);
       // Fallback to defaults when persistence fails
       setState(defaultState);
     } finally {
@@ -66,25 +95,41 @@ export const PreferencesProvider = ({ children }) => {
 
   const setThemeMode = useCallback(async (newMode) => {
     if (newMode === state.themeMode) return; // no-op if no change
+    console.log('[PreferencesProvider] Setting theme mode to:', newMode, 'platform:', Platform.OS);
     setState((prev) => ({ ...prev, themeMode: newMode }));
     try {
-      await AsyncStorage.setItem(THEME_KEY, newMode);
-      console.log('[PreferencesProvider] Theme mode saved to storage:', newMode);
+      // On web, use localStorage directly
+      if (isWeb && typeof localStorage !== 'undefined') {
+        localStorage.setItem(THEME_KEY, newMode);
+        console.log('[PreferencesProvider] [WEB] Theme mode saved to localStorage:', newMode);
+      } else {
+        // On native, use AsyncStorage
+        await AsyncStorage.setItem(THEME_KEY, newMode);
+        console.log('[PreferencesProvider] [NATIVE] Theme mode saved to AsyncStorage:', newMode);
+      }
     } catch (error) {
       console.error('[PreferencesProvider] Failed to save theme mode:', error);
     }
-  }, [state.themeMode]);
+  }, [state.themeMode, isWeb]);
 
   const setLanguage = useCallback(async (code) => {
     if (code === state.language) return; // no-op if no change
+    console.log('[PreferencesProvider] Setting language to:', code, 'platform:', Platform.OS);
     setState((prev) => ({ ...prev, language: code }));
     try {
-      await AsyncStorage.setItem(LANGUAGE_KEY, code);
-      console.log('[PreferencesProvider] Language saved to storage:', code);
+      // On web, use localStorage directly
+      if (isWeb && typeof localStorage !== 'undefined') {
+        localStorage.setItem(LANGUAGE_KEY, code);
+        console.log('[PreferencesProvider] [WEB] Language saved to localStorage:', code);
+      } else {
+        // On native, use AsyncStorage
+        await AsyncStorage.setItem(LANGUAGE_KEY, code);
+        console.log('[PreferencesProvider] [NATIVE] Language saved to AsyncStorage:', code);
+      }
     } catch (error) {
       console.error('[PreferencesProvider] Failed to save language:', error);
     }
-  }, [state.language]);
+  }, [state.language, isWeb]);
 
   const persistBiometric = useCallback(async (enabled) => {
     setState((prev) => ({ ...prev, biometricEnabled: enabled }));
@@ -145,8 +190,39 @@ export const PreferencesProvider = ({ children }) => {
   }, [persistBiometric]);
 
   const refreshPreferences = useCallback(() => {
+    console.log('[PreferencesProvider] Refreshing preferences...');
     loadPreferences();
   }, [loadPreferences]);
+  
+  const clearPreferences = useCallback(async () => {
+    console.log('[PreferencesProvider] Clearing all preferences, platform:', Platform.OS);
+    try {
+      // Clear state first
+      setState(defaultState);
+      
+      // Clear storage based on platform
+      if (isWeb && typeof localStorage !== 'undefined') {
+        localStorage.removeItem(THEME_KEY);
+        localStorage.removeItem(LANGUAGE_KEY);
+        console.log('[PreferencesProvider] [WEB] Cleared localStorage');
+      } else {
+        await AsyncStorage.multiRemove([THEME_KEY, LANGUAGE_KEY]);
+        console.log('[PreferencesProvider] [NATIVE] Cleared AsyncStorage');
+      }
+      
+      // Clear biometric if available
+      try {
+        const secureAvailable = SecureStore?.isAvailableAsync ? await SecureStore.isAvailableAsync() : false;
+        if (secureAvailable) {
+          await SecureStore.deleteItemAsync(BIOMETRIC_KEY);
+        }
+      } catch (e) {
+        // Ignore secure storage errors
+      }
+    } catch (error) {
+      console.error('[PreferencesProvider] Error clearing preferences:', error);
+    }
+  }, [isWeb]);
 
   const contextValue = useMemo(() => ({
     ...state,
@@ -156,7 +232,8 @@ export const PreferencesProvider = ({ children }) => {
     enableBiometrics,
     disableBiometrics,
     refreshPreferences,
-  }), [state, isReady, setThemeMode, setLanguage, enableBiometrics, disableBiometrics, refreshPreferences]);
+    clearPreferences,
+  }), [state, isReady, setThemeMode, setLanguage, enableBiometrics, disableBiometrics, refreshPreferences, clearPreferences]);
 
   return (
     <PreferencesContext.Provider value={contextValue}>

@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { AuthState, UserRole } from './types';
+import { WebStabilityWrapper } from './WebStabilityWrapper';
 
 export const AuthContext = createContext();
 
@@ -19,6 +21,57 @@ const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [authState, setAuthState] = useState(AuthState.LOADING);
   const [notifications, setNotifications] = useState([]);
+  
+  // Use refs to track state updates and prevent unnecessary re-renders
+  const stateRef = React.useRef({
+    session: null,
+    user: null,
+    profile: null,
+    authState: AuthState.LOADING,
+    lastUpdate: Date.now(),
+    pendingUpdates: false
+  });
+  
+  // Batch state updates to prevent cascading re-renders
+  const batchStateUpdate = React.useCallback((updates) => {
+    if (stateRef.current.pendingUpdates) return;
+    stateRef.current.pendingUpdates = true;
+    
+    // Use RAF to batch updates in the next frame
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => {
+        const now = Date.now();
+        if (now - stateRef.current.lastUpdate < 100) {
+          // Debounce rapid updates
+          setTimeout(() => {
+            stateRef.current.pendingUpdates = false;
+            batchStateUpdate(updates);
+          }, 100);
+          return;
+        }
+        
+        Object.entries(updates).forEach(([key, value]) => {
+          if (key === 'session') setSession(value);
+          if (key === 'user') setUser(value);
+          if (key === 'profile') setUserProfile(value);
+          if (key === 'authState') setAuthState(value);
+          stateRef.current[key] = value;
+        });
+        
+        stateRef.current.lastUpdate = now;
+        stateRef.current.pendingUpdates = false;
+      });
+    } else {
+      // Fallback for non-web platforms
+      Object.entries(updates).forEach(([key, value]) => {
+        if (key === 'session') setSession(value);
+        if (key === 'user') setUser(value);
+        if (key === 'profile') setUserProfile(value);
+        if (key === 'authState') setAuthState(value);
+        stateRef.current[key] = value;
+      });
+    }
+  }, []);
 
   // Function to add a notification
   const addNotification = (message, type = NOTIFICATION_TYPES.INFO, duration = 5000) => {
@@ -37,9 +90,41 @@ const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let isMounted = true;
+    
+    // Reset abort flag on mount
+    if (typeof window !== 'undefined') {
+      window._profileFetchAborted = false;
+    }
 
     const initializeAuth = async () => {
       try {
+        // First try to get cached profile if available
+        let cachedProfile = null;
+        if (typeof window !== 'undefined') {
+          try {
+            const sessionStr = localStorage.getItem('@supabase.auth.token');
+            if (sessionStr) {
+              const sessionData = JSON.parse(sessionStr);
+              if (sessionData?.user?.id) {
+                const cachedProfileStr = localStorage.getItem(`@adera/profile/${sessionData.user.id}`);
+                if (cachedProfileStr) {
+                  cachedProfile = JSON.parse(cachedProfileStr);
+                  const cacheAge = Date.now() - (cachedProfile._timestamp || 0);
+                  if (cacheAge < 5 * 60 * 1000) { // 5 minutes cache
+                    console.log('[AuthProvider] Using cached profile during init');
+                    if (isMounted) {
+                      setUserProfile(cachedProfile);
+                      setAuthState(AuthState.AUTHENTICATED);
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('[AuthProvider] Error reading cached profile:', e);
+          }
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
@@ -48,8 +133,12 @@ const AuthProvider = ({ children }) => {
           setUser(session?.user ?? null);
           
           if (session?.user) {
-            setAuthState(AuthState.AUTHENTICATED);
-            setUserProfile({ id: session.user.id, role: 'customer' });
+            console.log('[AuthProvider] Session found, fetching user profile for:', session.user.email);
+            if (!cachedProfile) {
+              setAuthState(AuthState.AUTHENTICATED);
+              // Don't set default role here - let fetchUserProfile set it from database
+              setUserProfile({ id: session.user.id, role: null });
+            }
             fetchUserProfile(session.user.id);
           } else {
             setAuthState(AuthState.UNAUTHENTICATED);
@@ -65,24 +154,52 @@ const AuthProvider = ({ children }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event);
-        if (!isMounted) return;
+        console.log('[AuthProvider] ⚡ Auth state changed:', event, 'session:', session ? 'exists' : 'null');
+        if (!isMounted) {
+          console.log('[AuthProvider] Component unmounted, ignoring auth state change');
+          return;
+        }
         
-        setSession(session);
-        setUser(session?.user ?? null);
+        // Prevent rapid state updates
+        if (typeof window !== 'undefined') {
+          if (window._lastAuthUpdate && Date.now() - window._lastAuthUpdate < 100) {
+            console.log('[AuthProvider] Debouncing rapid auth update');
+            return;
+          }
+          window._lastAuthUpdate = Date.now();
+        }
         
         if (session?.user) {
-          setAuthState(AuthState.AUTHENTICATED);
-          setUserProfile({ id: session.user.id, role: 'customer' });
+          console.log('[AuthProvider] ✅ User authenticated:', event, 'email:', session.user.email);
+          
+          // Batch state updates
+          batchStateUpdate({
+            session: session,
+            user: session.user,
+            profile: { id: session.user.id, role: null },
+            authState: AuthState.AUTHENTICATED
+          });
+          
+          // Handle side effects after state update
           await ensureUserProfileExists(session.user, session.user.user_metadata);
           await touchLastLogin(session.user.id);
           fetchUserProfile(session.user.id);
+          
           if (event === 'SIGNED_IN') {
             addNotification(`Welcome back! You've signed in successfully.`, NOTIFICATION_TYPES.SUCCESS);
           }
         } else {
-          setUserProfile(null);
-          setAuthState(AuthState.UNAUTHENTICATED);
+          console.log('[AuthProvider] 🚪 User signed out, event:', event);
+          
+          // Batch state updates for sign out
+          batchStateUpdate({
+            session: null,
+            user: null,
+            profile: null,
+            authState: AuthState.UNAUTHENTICATED
+          });
+          
+          console.log('[AuthProvider] Auth state set to UNAUTHENTICATED');
         }
       }
     );
@@ -153,116 +270,170 @@ const AuthProvider = ({ children }) => {
   };
 
   const fetchUserProfile = async (userId, retryCount = 0) => {
+    // Clear any existing fetch timer
+    if (typeof window !== 'undefined' && window._authStateTimer) {
+      clearTimeout(window._authStateTimer);
+      window._authStateTimer = null;
+    }
+    
+    // Check if profile fetch has been aborted (during sign out)
+    if (typeof window !== 'undefined' && window._profileFetchAborted) {
+      console.log('[AuthProvider] Profile fetch aborted');
+      return;
+    }
+
     try {
-      // Try to get profile from public.profiles first (new system)
-      let { data: profile, error: profileError } = await supabase
-        .from('profiles')
+      console.log('[AuthProvider] fetchUserProfile: Starting for userId:', userId, 'retry:', retryCount);
+      
+      // First try to get the profile from local storage cache
+      let cachedProfile = null;
+      try {
+        const cachedData = localStorage.getItem(`@adera/profile/${userId}`);
+        if (cachedData) {
+          cachedProfile = JSON.parse(cachedData);
+          const cacheAge = Date.now() - (cachedProfile._timestamp || 0);
+          if (cacheAge < 5 * 60 * 1000) { // 5 minutes cache
+            console.log('[AuthProvider] Using cached profile');
+            setUserProfile(cachedProfile);
+            setAuthState(AuthState.AUTHENTICATED);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[AuthProvider] Error reading profile cache:', e);
+      }
+
+      // Try to get profile from users table first (legacy system)
+      const { data: legacyProfile, error: legacyError } = await supabase
+        .from('users')
         .select('*')
         .eq('id', userId)
         .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error fetching user profile from profiles:', profileError);
+      if (legacyError && legacyError.code !== 'PGRST116') {
+        console.error('[AuthProvider] Error fetching user profile from users:', legacyError);
       }
 
-      if (!profile) {
-        // Fallback to legacy users table
-        const { data: legacyProfile, error: legacyError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', userId)
-          .single();
-
-        if (legacyError && legacyError.code !== 'PGRST116') {
-          console.error('Error fetching user profile from users:', legacyError);
-        }
-
-        if (legacyProfile) {
-          profile = {
-            id: legacyProfile.id,
-            email: legacyProfile.email,
-            full_name: `${legacyProfile.first_name || ''} ${legacyProfile.last_name || ''}`.trim(),
-            phone: legacyProfile.phone,
-            role: legacyProfile.role || 'customer',
-            language: legacyProfile.language || 'en',
-            avatar_url: legacyProfile.avatar_url,
-            email_confirmed: legacyProfile.is_verified,
-            phone_confirmed: false
-          };
-
-          // Best-effort: try to migrate this profile to new system
-          try {
-            const { error: insertError } = await supabase
-              .from('profiles')
-              .upsert(profile)
-              .select()
-              .single();
-
-            if (!insertError) {
-              console.log('[AuthProvider] Successfully migrated user profile to new system');
-            }
-          } catch (e) {
-            console.warn('[AuthProvider] Profile migration attempt failed:', e);
-          }
-        }
-      }
-
-      if (!profile) {
-        // If still no profile and within retry limit, wait and retry
-        // This handles race conditions with auth triggers
-        if (retryCount < 3) {
-          console.log(`Profile not found, retrying in ${(retryCount + 1) * 2} seconds...`);
-          setTimeout(() => {
-            fetchUserProfile(userId, retryCount + 1);
-          }, (retryCount + 1) * 2000);
+      let profile;
+      if (legacyProfile) {
+        console.log('[AuthProvider] Found legacy profile with role:', legacyProfile.role);
+        
+        // Check if profile is meaningfully different before updating
+        const newProfile = {
+          id: legacyProfile.id,
+          email: legacyProfile.email,
+          full_name: `${legacyProfile.first_name || ''} ${legacyProfile.last_name || ''}`.trim(),
+          phone: legacyProfile.phone,
+          role: legacyProfile.role || 'customer',
+          language: legacyProfile.language || 'en',
+          avatar_url: legacyProfile.avatar_url,
+          email_confirmed: legacyProfile.is_verified,
+          phone_confirmed: false,
+          _timestamp: Date.now()
+        };
+        
+        // Compare with current profile
+        const currentProfile = stateRef.current.profile;
+        const hasChanged = !currentProfile ||
+          currentProfile.role !== newProfile.role ||
+          currentProfile.email !== newProfile.email ||
+          currentProfile.full_name !== newProfile.full_name ||
+          currentProfile.phone !== newProfile.phone ||
+          currentProfile.language !== newProfile.language ||
+          currentProfile.avatar_url !== newProfile.avatar_url ||
+          currentProfile.email_confirmed !== newProfile.email_confirmed;
+          
+        if (hasChanged) {
+          profile = newProfile;
+        } else {
+          console.log('[AuthProvider] Profile unchanged, skipping update');
           return;
         }
+
+        // Cache the profile
+        try {
+          localStorage.setItem(`@adera/profile/${userId}`, JSON.stringify(profile));
+        } catch (e) {
+          console.warn('[AuthProvider] Error caching profile:', e);
+        }
+
+      } else if (!profile) {
+        // If no profile found and within retry limit, wait and retry
+        if (retryCount < 2) {
+          const delay = (retryCount + 1) * 2000;
+          console.log(`[AuthProvider] Profile not found, retrying in ${delay}ms...`);
+          
+          return new Promise((resolve) => {
+            window._authStateTimer = setTimeout(() => {
+              if (!window._profileFetchAborted) {
+                resolve(fetchUserProfile(userId, retryCount + 1));
+              }
+            }, delay);
+          });
+        }
+
         // Last resort: create minimal profile
-        profile = { 
+        console.warn('[AuthProvider] Creating minimal profile with default customer role');
+        profile = {
           id: userId,
           role: 'customer',
           email: user?.email,
-          language: 'en'
+          language: 'en',
+          _timestamp: Date.now()
         };
-        
-        // Try to create this minimal profile
-        try {
-          const { error: insertError } = await supabase
-            .from('profiles')
-            .upsert(profile)
-            .select()
-            .single();
 
-          if (!insertError) {
-            console.log('[AuthProvider] Created minimal profile for user');
-          }
+        // Cache the minimal profile
+        try {
+          localStorage.setItem(`@adera/profile/${userId}`, JSON.stringify(profile));
         } catch (e) {
-          console.warn('[AuthProvider] Minimal profile creation failed:', e);
+          console.warn('[AuthProvider] Error caching minimal profile:', e);
         }
       }
 
-      setUserProfile(profile);
-      setAuthState(AuthState.AUTHENTICATED);
+      // Check again for abort before setting state
+      if (!window._profileFetchAborted) {
+        console.log('[AuthProvider] Setting user profile with role:', profile.role);
+        setUserProfile(profile);
+        setAuthState(AuthState.AUTHENTICATED);
+      }
 
     } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
+      console.error('[AuthProvider] Error in fetchUserProfile:', error);
       
-      // Retry logic for network errors
-      if (retryCount < 2) {
-        console.log(`Network error, retrying in ${(retryCount + 1) * 3} seconds...`);
-        setTimeout(() => {
-          fetchUserProfile(userId, retryCount + 1);
-        }, (retryCount + 1) * 3000);
-        return;
+      if (retryCount < 2 && !window._profileFetchAborted) {
+        const delay = (retryCount + 1) * 3000;
+        console.log(`[AuthProvider] Network error, retrying in ${delay}ms...`);
+        
+        return new Promise((resolve) => {
+          window._authStateTimer = setTimeout(() => {
+            if (!window._profileFetchAborted) {
+              resolve(fetchUserProfile(userId, retryCount + 1));
+            }
+          }, delay);
+        });
       }
       
       // Keep user authenticated with minimal profile
-      setUserProfile(prev => prev || { 
-        id: userId,
-        role: 'customer',
-        email: user?.email,
-        language: 'en'
-      });
+      if (!window._profileFetchAborted) {
+        console.warn('[AuthProvider] Falling back to minimal profile after retries');
+        const minimalProfile = {
+          id: userId,
+          role: 'customer',
+          email: user?.email,
+          language: 'en',
+          _timestamp: Date.now()
+        };
+        
+        setUserProfile(minimalProfile);
+        setAuthState(AuthState.AUTHENTICATED);
+        
+        // Cache the minimal profile
+        try {
+          localStorage.setItem(`@adera/profile/${userId}`, JSON.stringify(minimalProfile));
+        } catch (e) {
+          console.warn('[AuthProvider] Error caching fallback profile:', e);
+        }
+      }
     }
   };
 
@@ -354,43 +525,121 @@ const AuthProvider = ({ children }) => {
 
   const signOut = async () => {
     try {
-      // Clear ALL local storage and state first
-      try {
-        // Clear any app-specific storage
-        localStorage.removeItem('adera:app_state');
-        localStorage.removeItem('adera:theme');
-        localStorage.removeItem('adera:preferences');
-        // Clear any session storage
-        sessionStorage.clear();
-      } catch (e) {
-        console.warn('[AuthProvider] Error clearing storage:', e);
+      console.log('[AuthProvider] 🚪 signOut: Starting sign out process');
+      
+      // 0. Abort any pending profile fetch
+      if (typeof window !== 'undefined') {
+        window._profileFetchAborted = true;
+        if (window._authStateTimer) {
+          clearTimeout(window._authStateTimer);
+          window._authStateTimer = null;
+        }
+      }
+      
+      // 1. Clear Supabase auth state first
+      console.log('[AuthProvider] Calling supabase.auth.signOut()');
+      const { error: signOutError } = await supabase.auth.signOut();
+      
+      if (signOutError) {
+        console.error('[AuthProvider] ❌ Sign out error from Supabase:', signOutError);
+        throw signOutError;
       }
 
-      // Clear state
+      // 2. Clear storage based on platform
+      try {
+        console.log('[AuthProvider] Clearing storage (preserving theme/language)');
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          try {
+            // Web storage handling
+            const preserveKeys = [
+              '@adera/preferences/themeMode',
+              '@adera/preferences/language',
+              '@adera/lastUsedLocale'
+            ];
+            
+            // Save preferences from localStorage if available
+            if (window.localStorage) {
+              // Get all keys
+              const keys = [];
+              for (let i = 0; i < localStorage.length; i++) {
+                keys.push(localStorage.key(i));
+              }
+              
+              // Remove all non-preserved keys
+              keys.forEach(key => {
+                if (!preserveKeys.includes(key) && !key.startsWith('@supabase.auth.refreshToken')) {
+                  localStorage.removeItem(key);
+                }
+              });
+            }
+
+            // Clear sessionStorage if available
+            if (window.sessionStorage) {
+              sessionStorage.clear();
+            }
+          } catch (webStorageError) {
+            console.warn('[AuthProvider] Web storage clearing error:', webStorageError);
+          }
+        } else {
+          // React Native AsyncStorage handling
+          try {
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const keys = await AsyncStorage.getAllKeys();
+            const preserveKeys = [
+              '@adera/preferences/themeMode',
+              '@adera/preferences/language'
+            ];
+            
+            // Get keys to remove (excluding preserved keys)
+            const keysToRemove = keys.filter(key => !preserveKeys.includes(key));
+            if (keysToRemove.length > 0) {
+              await AsyncStorage.multiRemove(keysToRemove);
+            }
+          } catch (asyncStorageError) {
+            console.warn('[AuthProvider] AsyncStorage clearing error:', asyncStorageError);
+          }
+        }
+      } catch (storageError) {
+        console.warn('[AuthProvider] Storage clearing error:', storageError);
+      }
+
+      // 3. Clear auth state
+      setAuthState(AuthState.UNAUTHENTICATED);
+      setSession(null);
       setUser(null);
       setUserProfile(null);
-      setSession(null);
-      setAuthState(AuthState.UNAUTHENTICATED);
+      setNotifications([]);
 
-      // Then sign out from Supabase - this should clear auth storage
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        console.error('[AuthProvider] Sign out error:', error);
-        // Even if Supabase sign-out fails, local state is cleared
-        return { success: true, warning: error.message };
+      // 4. Platform specific cleanup
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        try {
+          // Clear any queued timers
+          const existingTimers = window._aderaTimers || [];
+          existingTimers.forEach(timer => {
+            if (timer) clearTimeout(timer);
+          });
+          window._aderaTimers = [];
+        } catch (timerError) {
+          console.warn('[AuthProvider] Timer cleanup error:', timerError);
+        }
       }
 
-      console.log('[AuthProvider] Sign out successful');
+      // Add success notification
+      addNotification('Signed out successfully', NOTIFICATION_TYPES.SUCCESS);
+      console.log('[AuthProvider] ✅ Sign out complete');
+      
       return { success: true };
     } catch (error) {
-      console.error('[AuthProvider] Sign out exception:', error);
-      // Ensure local state is cleared even on exception
+      console.error('[AuthProvider] ❌ Sign out exception:', error);
+      
+      // Ensure cleanup even on error
+      setAuthState(AuthState.UNAUTHENTICATED);
+      setSession(null);
       setUser(null);
       setUserProfile(null);
-      setSession(null);
-      setAuthState(AuthState.UNAUTHENTICATED);
-      return { success: true, warning: error.message };
+      setNotifications([]);
+      
+      return { success: false, error: error.message };
     }
   };
 
@@ -549,10 +798,15 @@ const AuthProvider = ({ children }) => {
     resendConfirmationEmail,
   };
 
+  // Wrap provider with stability wrapper for web platform
+  const Wrapper = Platform.OS === 'web' ? WebStabilityWrapper : React.Fragment;
+
   return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    <Wrapper>
+      <AuthContext.Provider value={value}>
+        {children}
+      </AuthContext.Provider>
+    </Wrapper>
   );
 };
 

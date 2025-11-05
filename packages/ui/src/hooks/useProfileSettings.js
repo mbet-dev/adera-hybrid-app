@@ -102,25 +102,45 @@ export const useProfileSettings = (roleType = 'customer') => {
   };
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await signOut();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            }
+    console.log('[ProfileScreen] handleSignOut: Starting sign out');
+    
+    if (Platform.OS === 'web') {
+      // On web, skip confirmation for smoother experience
+      signOutUser();
+    } else {
+      Alert.alert(
+        'Sign Out',
+        'Are you sure you want to sign out?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign Out',
+            style: 'destructive',
+            onPress: signOutUser,
           },
-        },
-      ],
-      { cancelable: true }
-    );
+        ],
+        { cancelable: true }
+      );
+    }
+  };
+
+  const signOutUser = async () => {
+    try {
+      // Clear any pending profile fetches before signing out
+      if (typeof window !== 'undefined') {
+        window._profileFetchAborted = true;
+      }
+      
+      const result = await signOut();
+      if (!result.success && Platform.OS !== 'web') {
+        Alert.alert('Error', result.warning || 'Failed to sign out. Please try again.');
+      }
+    } catch (error) {
+      console.error('[ProfileScreen] handleSignOut: Error during sign out:', error);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Error', 'Failed to sign out. Please try again.');
+      }
+    }
   };
 
   const commonMenuItems = [

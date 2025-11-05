@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Text, Chip, FAB, Searchbar } from 'react-native-paper';
+import { Text, Chip, Searchbar } from 'react-native-paper';
+import { CustomFAB } from '@adera/ui';
 import { AppBar, Card, SafeArea, StatusBadge, useTheme } from '@adera/ui';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -173,7 +174,7 @@ const TaskList = ({ navigation }) => {
         )}
       </ScrollView>
 
-      <FAB
+      <CustomFAB
         icon="qrcode-scan"
         label="Batch Scan"
         style={[styles.fab, { backgroundColor: theme.colors.primary }]}
@@ -217,7 +218,18 @@ const styles = StyleSheet.create({
   emptyCard: { padding: 40, alignItems: 'center', borderRadius: 16, marginTop: 20 },
   emptyText: { marginTop: 16, fontWeight: '600' },
   emptySubtext: { marginTop: 4 },
-  fab: { position: 'absolute', margin: 16, right: 0, bottom: 0 },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    elevation: 8,
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
 });
 
 export default TaskList;
