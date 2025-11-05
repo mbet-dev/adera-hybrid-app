@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  Platform,
 } from 'react-native';
 import SafeArea from './SafeArea';
 import Card from './Card';
@@ -21,30 +22,50 @@ const ProfileScreen = ({ user, menuItems, appVersion = 'v1.0.0' }) => {
   const { themeMode, setThemeMode, language, setLanguage, biometricEnabled, enableBiometrics, disableBiometrics } = usePreferences();
 
   const handleSignOut = () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('[ProfileScreen] handleSignOut: Starting sign out');
-              const result = await signOut();
-              console.log('[ProfileScreen] handleSignOut: Sign out result:', result);
-              if (!result?.success) {
-                Alert.alert('Error', 'Failed to sign out. Please try again.');
-              }
-            } catch (error) {
-              console.error('[ProfileScreen] handleSignOut: Error during sign out:', error);
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
-            }
+    const confirmSignOut = async () => {
+      try {
+        console.log('[ProfileScreen] handleSignOut: Starting sign out');
+        const result = await signOut();
+        console.log('[ProfileScreen] handleSignOut: Sign out result:', result);
+        if (!result?.success) {
+          if (Platform.OS === 'web') {
+            window.alert('Failed to sign out. Please try again.');
+          } else {
+            Alert.alert('Error', 'Failed to sign out. Please try again.');
+          }
+        }
+        // On web, redirect to the root to re-trigger the onboarding flow
+        if (Platform.OS === 'web') {
+          window.location.href = '/';
+        }
+      } catch (error) {
+        console.error('[ProfileScreen] handleSignOut: Error during sign out:', error);
+        if (Platform.OS === 'web') {
+          window.alert('Failed to sign out. Please try again.');
+        } else {
+          Alert.alert('Error', 'Failed to sign out. Please try again.');
+        }
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to sign out?')) {
+        confirmSignOut();
+      }
+    } else {
+      Alert.alert(
+        'Sign Out',
+        'Are you sure you want to sign out?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign Out',
+            style: 'destructive',
+            onPress: confirmSignOut,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const renderProfileHeader = () => (

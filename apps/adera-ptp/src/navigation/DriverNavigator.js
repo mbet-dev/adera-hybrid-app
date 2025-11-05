@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppBottomNavigation } from '@adera/ui';
+import { AppBottomNavigation, CustomFAB } from '@adera/ui';
 
 // Import Driver screens
 import DriverDashboard from '../screens/driver/DriverDashboard';
@@ -24,11 +24,24 @@ const DriverNavigator = () => {
     profile: DriverProfile,
   });
 
+  const renderFab = () => {
+    if (routes[index].key === 'tasks') {
+      return (
+        <CustomFAB
+          icon="plus"
+          onPress={() => console.log('Add new task FAB pressed')}
+        />
+      );
+    }
+    return null;
+  };
+
   return (
     <AppBottomNavigation
       navigationState={{ index, routes }}
       onIndexChange={setIndex}
       renderScene={renderScene}
+      renderFab={renderFab}
     />
   );
 };

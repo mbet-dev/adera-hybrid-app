@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppBottomNavigation } from '@adera/ui';
+import { AppBottomNavigation, CustomFAB } from '@adera/ui';
 
 // Import Partner screens
 import PartnerDashboard from '../screens/partner/PartnerDashboard';
@@ -26,11 +26,24 @@ const PartnerNavigator = () => {
     profile: PartnerProfile,
   });
 
+  const renderFab = () => {
+    if (routes[index].key === 'scan') {
+      return (
+        <CustomFAB
+          icon="qrcode-scan"
+          onPress={() => console.log('Scan QR FAB pressed')}
+        />
+      );
+    }
+    return null;
+  };
+
   return (
     <AppBottomNavigation
       navigationState={{ index, routes }}
       onIndexChange={setIndex}
       renderScene={renderScene}
+      renderFab={renderFab}
     />
   );
 };
