@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     elevation: 8,
-    zIndex: 999,
+    zIndex: 10,
   },
   iosFab: {
     shadowColor: '#000',
