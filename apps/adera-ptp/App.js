@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
@@ -10,6 +10,7 @@ import { PreferencesProvider, usePreferences } from '@adera/preferences';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import ThemelessLoadingScreen from './src/ThemelessLoadingScreen';
+import Constants from 'expo-constants';
 
 // Main App Component
 function AppContent() {
@@ -56,6 +57,21 @@ function AppContent() {
       }
     }
   }, [isAuthenticated, isLoading, wasAuthenticated]);
+
+  // Helper for correct web title
+  const getWebTitle = () => {
+    const rawName = Constants?.expoConfig?.name || Constants?.manifest?.name || '';
+    const lower = String(rawName).toLowerCase();
+    if (lower.includes('ptp')) return 'Adera-PTP';
+    if (lower.includes('shop')) return 'Adera-Shop';
+    return 'Adera-Hybrid-App';
+  };
+
+  useEffect(() => {
+    if (typeof document !== 'undefined' && Platform.OS === 'web') {
+      document.title = getWebTitle();
+    }
+  }, [isAuthenticated, isLoading, role, hasCompletedOnboarding, showAppSelector]);
 
   // Show loading while auth is initializing
   if (isLoading) {
