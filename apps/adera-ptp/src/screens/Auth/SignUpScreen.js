@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth, useAuthErrors, UserRole } from '@adera/auth';
-import { Button, TextInput, useTheme } from '@adera/ui';
+import { Button, TextInput, useTheme, SignupSuccessModal } from '@adera/ui';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 
@@ -39,11 +39,14 @@ const ROLE_OPTIONS = [
 
 const SignUpScreen = ({ navigation }) => {
   const theme = useTheme();
-  const { signUp, isLoading } = useAuth();
+  const { signUp, isLoading, notifications, dismissNotification } = useAuth();
   const { getErrorMessage, isNetworkError } = useAuthErrors();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupFirstName, setSignupFirstName] = useState('');
 
   const handleSignUp = async (values) => {
     try {
@@ -62,18 +65,10 @@ const SignUpScreen = ({ navigation }) => {
         userData
       );
 
-      // Success - show confirmation (works for both native and web)
-      Alert.alert(
-        '✅ Account Created!',
-        `Welcome to Adera, ${values.firstName}! We've sent a verification email to ${values.email}. Please check your inbox and verify your account to get started.`,
-        [
-          {
-            text: 'Got it',
-            onPress: () => navigation.navigate('Login'),
-          },
-        ],
-        { cancelable: false }
-      );
+      // Success - show elegant modal
+      setSignupEmail(values.email);
+      setSignupFirstName(values.firstName);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error('Sign up error:', error);
       const message = getErrorMessage(error);
@@ -378,6 +373,15 @@ const SignUpScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </ScrollView>
+        <SignupSuccessModal
+          visible={showSuccessModal}
+          onClose={() => {
+            setShowSuccessModal(false);
+            navigation.navigate('Login');
+          }}
+          email={signupEmail}
+          firstName={signupFirstName}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

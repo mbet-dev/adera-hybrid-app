@@ -7,6 +7,42 @@ import { useTheme } from './ThemeProvider';
 const AppBottomNavigation = ({ navigationState, onIndexChange, renderScene, renderFab, ...props }) => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const [, forceUpdate] = React.useReducer((c) => c + 1, 0);
+
+  // Aggressively sync tab state in web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const syncFromHash = () => {
+        const hash = window.location.hash;
+        const matchingRoute = navigationState.routes.findIndex(
+          route => `#${route.key}` === hash
+        );
+        if (matchingRoute >= 0 && matchingRoute !== navigationState.index) {
+          onIndexChange(matchingRoute);
+        }
+      };
+      window.addEventListener('popstate', syncFromHash);
+      window.addEventListener('hashchange', syncFromHash);
+      window.addEventListener('resize', forceUpdate);
+      window.addEventListener('focus', syncFromHash);
+      window.addEventListener('blur', forceUpdate);
+      // MutationObserver to catch DOM changes that may cause nav issues
+      const appRoot = document.getElementById('root') || document.body;
+      let observer = null;
+      if (appRoot && window.MutationObserver) {
+        observer = new MutationObserver(() => forceUpdate());
+        observer.observe(appRoot, { childList: true, subtree: true });
+      }
+      return () => {
+        window.removeEventListener('popstate', syncFromHash);
+        window.removeEventListener('hashchange', syncFromHash);
+        window.removeEventListener('resize', forceUpdate);
+        window.removeEventListener('focus', syncFromHash);
+        window.removeEventListener('blur', forceUpdate);
+        observer && observer.disconnect();
+      };
+    }
+  }, [navigationState]);
 
   // Handle web back button
   useEffect(() => {
@@ -61,6 +97,19 @@ const AppBottomNavigation = ({ navigationState, onIndexChange, renderScene, rend
           onIndexChange(matchingRoute);
         }
       }
+    }
+  }, []);
+
+  // [PATCH] On web, force update on resize/visibilitychange
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handle = () => forceUpdate();
+      window.addEventListener('resize', handle);
+      window.addEventListener('visibilitychange', handle);
+      return () => {
+        window.removeEventListener('resize', handle);
+        window.removeEventListener('visibilitychange', handle);
+      };
     }
   }, []);
 

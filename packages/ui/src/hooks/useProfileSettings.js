@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, Modal, View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import { useAuth } from '@adera/auth';
 import { usePreferences } from '@adera/preferences';
+import { useTheme } from '../ThemeProvider';
 
 export const useProfileSettings = (roleType = 'customer') => {
   const { user: authUser, signOut } = useAuth();
+  const theme = useTheme();
   const { 
     themeMode, 
     setThemeMode, 
@@ -21,57 +23,15 @@ export const useProfileSettings = (roleType = 'customer') => {
   const [locationTracking, setLocationTracking] = useState(roleType === 'driver');
   const [shopOpen, setShopOpen] = useState(roleType === 'partner');
   const [autoAcceptParcels, setAutoAcceptParcels] = useState(false);
+  const [isThemeModalVisible, setThemeModalVisible] = useState(false);
+  const [isLangModalVisible, setLangModalVisible] = useState(false);
 
   const handleThemeModeChange = () => {
-    Alert.alert(
-      'Select Theme',
-      'Choose your preferred theme mode',
-      [
-        {
-          text: 'System Default',
-          onPress: () => {
-            if (themeMode !== 'system') setThemeMode('system');
-          },
-        },
-        {
-          text: 'Light Mode',
-          onPress: () => {
-            if (themeMode !== 'light') setThemeMode('light');
-          },
-        },
-        {
-          text: 'Dark Mode',
-          onPress: () => {
-            if (themeMode !== 'dark') setThemeMode('dark');
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-      { cancelable: true }
-    );
+    setThemeModalVisible(true);
   };
 
   const handleLanguageChange = () => {
-    Alert.alert(
-      'Select Language',
-      'Choose your preferred language',
-      [
-        {
-          text: 'English',
-          onPress: () => {
-            if (language !== 'en') setLanguage('en');
-          },
-        },
-        {
-          text: 'አማርኛ (Amharic)',
-          onPress: () => {
-            if (language !== 'am') setLanguage('am');
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-      { cancelable: true }
-    );
+    setLangModalVisible(true);
   };
 
   const handleBiometricToggle = async (enabled) => {
@@ -322,6 +282,96 @@ export const useProfileSettings = (roleType = 'customer') => {
     return [...(roleSpecificItems[roleType] || []), ...commonMenuItems];
   };
 
+  const ThemeSelectModal = () => (
+    <Modal visible={isThemeModalVisible} transparent animationType="fade" onRequestClose={() => setThemeModalVisible(false)}>
+      <TouchableOpacity 
+        style={modalStyles.overlay} 
+        activeOpacity={1} 
+        onPress={() => setThemeModalVisible(false)}
+      >
+        <TouchableOpacity 
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={[modalStyles.modalContent, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[modalStyles.modalTitle, { color: theme.colors.text.primary }]}>Choose a Theme</Text>
+          {['system', 'light', 'dark'].map(mode => (
+            <TouchableOpacity
+              key={mode}
+              onPress={() => { setThemeMode(mode); setThemeModalVisible(false); }}
+              style={[
+                modalStyles.option,
+                { backgroundColor: themeMode === mode ? theme.colors.primaryContainer : 'transparent' }
+              ]}
+            >
+              <Text style={[
+                modalStyles.optionText,
+                { 
+                  color: themeMode === mode ? theme.colors.primary : theme.colors.text.primary,
+                  fontWeight: themeMode === mode ? 'bold' : 'normal' 
+                }
+              ]}>
+                {mode === 'system' ? 'System Default' : mode.charAt(0).toUpperCase() + mode.slice(1) + ' Mode'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity 
+            onPress={() => setThemeModalVisible(false)} 
+            style={modalStyles.cancelButton}
+          >
+            <Text style={[modalStyles.cancelText, { color: theme.colors.text.secondary }]}>Cancel</Text>
+          </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+  
+  const LanguageSelectModal = () => (
+    <Modal visible={isLangModalVisible} transparent animationType="fade" onRequestClose={() => setLangModalVisible(false)}>
+      <TouchableOpacity 
+        style={modalStyles.overlay} 
+        activeOpacity={1} 
+        onPress={() => setLangModalVisible(false)}
+      >
+        <TouchableOpacity 
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={[modalStyles.modalContent, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[modalStyles.modalTitle, { color: theme.colors.text.primary }]}>Choose Language</Text>
+          {[{ code: 'en', label: 'English' }, { code: 'am', label: 'አማርኛ (Amharic)' }].map(opt => (
+            <TouchableOpacity
+              key={opt.code}
+              onPress={() => { setLanguage(opt.code); setLangModalVisible(false); }}
+              style={[
+                modalStyles.option,
+                { backgroundColor: language === opt.code ? theme.colors.primaryContainer : 'transparent' }
+              ]}
+            >
+              <Text style={[
+                modalStyles.optionText,
+                { 
+                  color: language === opt.code ? theme.colors.primary : theme.colors.text.primary,
+                  fontWeight: language === opt.code ? 'bold' : 'normal' 
+                }
+              ]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity 
+            onPress={() => setLangModalVisible(false)} 
+            style={modalStyles.cancelButton}
+          >
+            <Text style={[modalStyles.cancelText, { color: theme.colors.text.secondary }]}>Cancel</Text>
+          </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+  
   return {
     user: {
       name: authUser?.user_metadata?.full_name || `Adera ${roleType.charAt(0).toUpperCase() + roleType.slice(1)}`,
@@ -343,5 +393,49 @@ export const useProfileSettings = (roleType = 'customer') => {
     autoAcceptParcels,
     setAutoAcceptParcels,
     handleSignOut,
+    ThemeSelectModal,
+    LanguageSelectModal,
   };
 };
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    borderRadius: 12,
+    padding: 24,
+    minWidth: 280,
+    maxWidth: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  option: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  optionText: {
+    fontSize: 16,
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  cancelText: {
+    fontSize: 16,
+  },
+});

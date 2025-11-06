@@ -21,6 +21,7 @@ const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [authState, setAuthState] = useState(AuthState.LOADING);
   const [notifications, setNotifications] = useState([]);
+  const [profileError, setProfileError] = useState(null);
   
   // Use refs to track state updates and prevent unnecessary re-renders
   const stateRef = React.useRef({
@@ -208,6 +209,16 @@ const AuthProvider = ({ children }) => {
       isMounted = false;
       subscription?.unsubscribe();
     };
+  }, []);
+
+  // [PATCH] Periodically refresh session every 5 minutes on web
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const refreshTimer = setInterval(() => {
+        supabase.auth.refreshSession();
+      }, 5 * 60 * 1000); // 5 min
+      return () => clearInterval(refreshTimer);
+    }
   }, []);
 
   const ensureUserProfileExists = async (authUser, metadata = {}) => {
@@ -434,6 +445,8 @@ const AuthProvider = ({ children }) => {
           console.warn('[AuthProvider] Error caching fallback profile:', e);
         }
       }
+      setProfileError(error);
+      setAuthState(AuthState.UNAUTHENTICATED);
     }
   };
 
@@ -787,6 +800,7 @@ const AuthProvider = ({ children }) => {
     role: userProfile?.role || null,
     notifications,
     dismissNotification,
+    profileError,
     // Auth methods
     signIn,
     signUp,

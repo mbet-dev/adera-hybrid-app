@@ -23,6 +23,7 @@ export * from './src/components/NotificationSnackbar';
 export * from './src/components/NotificationContainer';
 export { useProfileSettings } from './src/hooks/useProfileSettings';
 export { default as CustomFAB } from './src/components/CustomFAB';
+export { default as SignupSuccessModal } from './src/components/SignupSuccessModal';
 
 // ProfileScreen export moved to end to avoid require cycle
 export { default as ProfileScreen } from './src/ProfileScreen';
