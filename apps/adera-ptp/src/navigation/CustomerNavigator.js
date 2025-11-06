@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Platform } from 'react-native';
 import { AppBottomNavigation } from '@adera/ui';
 
 // Import Customer screens
