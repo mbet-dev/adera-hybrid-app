@@ -536,13 +536,13 @@ const AuthProvider = ({ children }) => {
         }
       }
       
-      // 1. Clear auth state and storage first
-      const { clearAuthState } = require('./clearAuthState');
-      await clearAuthState();
-      
-      // 2. Clear Supabase auth state
+      // 1. Clear Supabase auth state first
       console.log('[AuthProvider] Calling supabase.auth.signOut()');
       const { error: signOutError } = await supabase.auth.signOut();
+      
+      // 2. Clear local auth state and storage
+      const { clearAuthState } = require('./clearAuthState');
+      await clearAuthState();
       
       if (signOutError) {
         console.error('[AuthProvider] ❌ Sign out error from Supabase:', signOutError);
