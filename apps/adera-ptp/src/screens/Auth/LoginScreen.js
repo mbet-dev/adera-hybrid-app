@@ -13,15 +13,18 @@ import * as Yup from 'yup';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { Snackbar } from 'react-native-paper';
 import { useAuth, useAuthErrors } from '@adera/auth';
 import { Button, TextInput, useTheme } from '@adera/ui';
 import { Platform } from 'react-native';
 import { usePreferences } from '@adera/preferences';
+import { useRoute } from '@react-navigation/native';
 
 console.log('Platform.OS:', Platform.OS);
 
 const LoginScreen = ({ navigation }) => {
   const theme = useTheme();
+  const route = useRoute();
   const { signIn, isLoading, resendConfirmationEmail, checkEmailConfirmationStatus, refreshSession } = useAuth();
   const { getErrorMessage, isNetworkError } = useAuthErrors();
   const { biometricEnabled } = usePreferences();
@@ -32,6 +35,7 @@ const LoginScreen = ({ navigation }) => {
   const [showRefreshLink, setShowRefreshLink] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [showVerificationSuccess, setShowVerificationSuccess] = useState(false);
 
   useEffect(() => {
     const checkBiometric = async () => {
@@ -70,6 +74,16 @@ const LoginScreen = ({ navigation }) => {
     };
     checkBiometric();
   }, [biometricEnabled]);
+
+  // Check for verification success from route params
+  useEffect(() => {
+    const params = route.params;
+    if (params?.showSuccessMessage && params?.emailVerified) {
+      setShowVerificationSuccess(true);
+      // Clear params to prevent showing again on re-render
+      navigation.setParams({ showSuccessMessage: false, emailVerified: false });
+    }
+  }, [route.params, navigation]);
 
   const validationSchema = Yup.object().shape({
     email: Yup.string()
@@ -382,6 +396,18 @@ const LoginScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </ScrollView>
+        <Snackbar
+          visible={showVerificationSuccess}
+          onDismiss={() => setShowVerificationSuccess(false)}
+          duration={6000}
+          style={{ marginBottom: Platform.OS === 'web' ? 20 : 0 }}
+          action={{
+            label: 'Dismiss',
+            onPress: () => setShowVerificationSuccess(false),
+          }}
+        >
+          🎉 Email verified successfully! Your account is now active. Please sign in to continue.
+        </Snackbar>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
