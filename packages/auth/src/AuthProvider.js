@@ -622,6 +622,10 @@ const AuthProvider = ({ children }) => {
         } catch (timerError) {
           console.warn('[AuthProvider] Timer cleanup error:', timerError);
         }
+        // Aggressive web onboarding redirect for web after signout;
+        setTimeout(() => {
+          window.location.replace('/');
+        }, 200);
       }
 
       // Add success notification

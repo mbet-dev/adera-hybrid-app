@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Appbar } from 'react-native-paper';
 import { useTheme } from './ThemeProvider';
+import Constants from 'expo-constants';
 
 const AppBar = ({ 
   title, 
@@ -13,6 +14,25 @@ const AppBar = ({
   ...props 
 }) => {
   const theme = useTheme();
+
+  const defaultTitle = useMemo(() => {
+    const rawName = Constants?.expoConfig?.name || Constants?.manifest?.name || '';
+    const lower = String(rawName).toLowerCase();
+    if (lower.includes('ptp')) return 'Adera-PTP';
+    if (lower.includes('shop')) return 'Adera-Shop';
+    return 'Adera-Hybrid-App';
+  }, []);
+
+  const resolvedTitle = title ?? (Platform.OS === 'web' ? defaultTitle : undefined);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const tabTitle = resolvedTitle || defaultTitle;
+      if (typeof document !== 'undefined' && document.title !== tabTitle) {
+        document.title = tabTitle;
+      }
+    }
+  }, [resolvedTitle, defaultTitle]);
 
   // Use custom implementation for web to avoid SafeAreaProvider issues
   if (Platform.OS === 'web') {
@@ -38,7 +58,7 @@ const AppBar = ({
         
         <View style={styles.titleContainer}>
           <Text style={[styles.title, { color: theme.colors.onPrimary }]}>
-            {title}
+            {resolvedTitle}
           </Text>
           {subtitle && (
             <Text style={[styles.subtitle, { color: theme.colors.onPrimary }]}>
@@ -85,7 +105,7 @@ const AppBar = ({
       )}
       
       <Appbar.Content 
-        title={title}
+        title={resolvedTitle}
         subtitle={subtitle}
         titleStyle={{ color: theme.colors.onPrimary }}
         subtitleStyle={{ color: theme.colors.onPrimary }}
