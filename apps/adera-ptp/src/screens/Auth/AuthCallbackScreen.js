@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '@adera/auth';
 import { useAuth } from '@adera/auth';
@@ -13,14 +13,29 @@ const AuthCallbackScreen = () => {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        // Check if this is an email verification callback
+        let isVerification = false;
+        if (Platform.OS === 'web' && typeof window !== 'undefined') {
+          const hashParams = new URLSearchParams(window.location.hash.substring(1));
+          const searchParams = new URLSearchParams(window.location.search);
+          const type = hashParams.get('type') || searchParams.get('type');
+          isVerification = type === 'signup' || type === 'email';
+        }
+
         // Supabase should have handled tokens via URL automatically.
         // Refresh to ensure session is stored.
         await refreshSession();
+        
+        // Navigate to Login with verification success parameter
+        navigation.replace('Login', { 
+          emailVerified: isVerification,
+          showSuccessMessage: isVerification 
+        });
       } catch (e) {
         console.warn('Auth callback refresh error', e);
+        // Still navigate to Login even on error
+        navigation.replace('Login', { emailVerified: false });
       }
-      // Replace to main app navigator regardless, routing will happen via auth state.
-      navigation.replace('Login');
     };
     handleCallback();
   }, []);
