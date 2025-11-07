@@ -10,16 +10,6 @@ import ParcelHistory from '../screens/customer/ParcelHistory';
 import Profile from '../screens/customer/Profile';
 
 const CustomerNavigator = () => {
-  // Initialize index based on URL hash in web environment
-  const getInitialIndex = () => {
-    if (Platform.OS === 'web') {
-      const hash = window.location.hash.replace('#', '');
-      const routeIndex = routes.findIndex(route => route.key === hash);
-      return routeIndex >= 0 ? routeIndex : 0;
-    }
-    return 0;
-  };
-
   const routes = [
     { key: 'dashboard', title: 'Dashboard', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
     { key: 'create', title: 'Send', focusedIcon: 'send', unfocusedIcon: 'send-outline' },
@@ -28,9 +18,21 @@ const CustomerNavigator = () => {
     { key: 'profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
   ];
 
-  const [index, setIndex] = useState(getInitialIndex());
+  // Initialize index based on URL hash in web environment (if present)
+  const getInitialIndex = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        const routeIndex = routes.findIndex(route => route.key === hash);
+        if (routeIndex >= 0) {
+          return routeIndex;
+        }
+      }
+    }
+    return 0;
+  };
 
-  console.log('[CustomerNavigator] Rendering with index:', index);
+  const [index, setIndex] = useState(getInitialIndex);
 
   const renderScene = AppBottomNavigation.SceneMap({
     dashboard: CustomerDashboard,
@@ -40,15 +42,10 @@ const CustomerNavigator = () => {
     profile: Profile,
   });
 
-  console.log('[CustomerNavigator] Scene map created, rendering AppBottomNavigation');
-
   return (
     <AppBottomNavigation
       navigationState={{ index, routes }}
-      onIndexChange={(newIndex) => {
-        console.log('[CustomerNavigator] Tab changed to:', newIndex, routes[newIndex]?.title);
-        setIndex(newIndex);
-      }}
+      onIndexChange={setIndex}
       renderScene={renderScene}
     />
   );

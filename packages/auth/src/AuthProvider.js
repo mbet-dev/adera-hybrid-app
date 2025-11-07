@@ -23,54 +23,46 @@ const AuthProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [profileError, setProfileError] = useState(null);
   
-  // Use refs to track state updates and prevent unnecessary re-renders
+  // Use refs to track state and manage request cancellation
   const stateRef = React.useRef({
     session: null,
     user: null,
     profile: null,
     authState: AuthState.LOADING,
-    lastUpdate: Date.now(),
-    pendingUpdates: false
+    currentUserId: null,
+    profileFetchController: null,
+    profileFetchTimeout: null,
+    roleLoadTimeout: null
   });
   
-  // Batch state updates to prevent cascading re-renders
-  const batchStateUpdate = React.useCallback((updates) => {
-    if (stateRef.current.pendingUpdates) return;
-    stateRef.current.pendingUpdates = true;
-    
-    // Use RAF to batch updates in the next frame
-    if (typeof window !== 'undefined') {
-      window.requestAnimationFrame(() => {
-        const now = Date.now();
-        if (now - stateRef.current.lastUpdate < 100) {
-          // Debounce rapid updates
-          setTimeout(() => {
-            stateRef.current.pendingUpdates = false;
-            batchStateUpdate(updates);
-          }, 100);
-          return;
-        }
-        
-        Object.entries(updates).forEach(([key, value]) => {
-          if (key === 'session') setSession(value);
-          if (key === 'user') setUser(value);
-          if (key === 'profile') setUserProfile(value);
-          if (key === 'authState') setAuthState(value);
-          stateRef.current[key] = value;
-        });
-        
-        stateRef.current.lastUpdate = now;
-        stateRef.current.pendingUpdates = false;
-      });
-    } else {
-      // Fallback for non-web platforms
-      Object.entries(updates).forEach(([key, value]) => {
-        if (key === 'session') setSession(value);
-        if (key === 'user') setUser(value);
-        if (key === 'profile') setUserProfile(value);
-        if (key === 'authState') setAuthState(value);
-        stateRef.current[key] = value;
-      });
+  // Cancel any pending profile fetch
+  const cancelProfileFetch = React.useCallback(() => {
+    if (stateRef.current.profileFetchController) {
+      stateRef.current.profileFetchController.abort();
+      stateRef.current.profileFetchController = null;
+    }
+    if (stateRef.current.profileFetchTimeout) {
+      clearTimeout(stateRef.current.profileFetchTimeout);
+      stateRef.current.profileFetchTimeout = null;
+    }
+    if (stateRef.current.roleLoadTimeout) {
+      clearTimeout(stateRef.current.roleLoadTimeout);
+      stateRef.current.roleLoadTimeout = null;
+    }
+  }, []);
+  
+  // Invalidate cache for a specific user
+  const invalidateProfileCache = React.useCallback((userId) => {
+    if (!userId) return;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(`@adera/profile/${userId}`);
+      } else {
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        AsyncStorage.removeItem(`@adera/profile/${userId}`);
+      }
+    } catch (e) {
+      console.warn('[AuthProvider] Error invalidating cache:', e);
     }
   }, []);
 
@@ -89,16 +81,269 @@ const AuthProvider = ({ children }) => {
     setNotifications(prev => prev.filter(notif => notif.id !== id));
   };
 
+  // Define fetchUserProfile before useEffect that uses it
+  const fetchUserProfile = React.useCallback(async (userId, retryCount = 0) => {
+    // Cancel any existing profile fetch
+    cancelProfileFetch();
+    
+    // Verify this is still the current user
+    if (stateRef.current.currentUserId !== userId) {
+      console.log('[AuthProvider] User changed during fetch, aborting');
+      return;
+    }
+
+    // Create new AbortController for this fetch
+    const controller = new AbortController();
+    stateRef.current.profileFetchController = controller;
+
+    try {
+      console.log('[AuthProvider] fetchUserProfile: Starting for userId:', userId, 'retry:', retryCount);
+      
+      // Get current user email from stateRef for timeout fallback
+      const currentUserEmail = stateRef.current.user?.email || '';
+      
+      // Set timeout for role loading (10 seconds max)
+      if (!retryCount) {
+        stateRef.current.roleLoadTimeout = setTimeout(() => {
+          if (stateRef.current.currentUserId === userId && !stateRef.current.profile?.role) {
+            console.warn('[AuthProvider] Role loading timeout, using default customer role');
+            const timeoutProfile = {
+              id: userId,
+              role: 'customer',
+              email: currentUserEmail,
+              language: 'en',
+              _timestamp: Date.now()
+            };
+            setUserProfile(timeoutProfile);
+            setAuthState(AuthState.AUTHENTICATED);
+          }
+        }, 10000);
+      }
+      
+      // First try to get the profile from local storage cache
+      let cachedProfile = null;
+      try {
+        const storage = typeof window !== 'undefined' && window.localStorage 
+          ? window.localStorage 
+          : require('@react-native-async-storage/async-storage').default;
+        
+        const cachedData = typeof window !== 'undefined' && window.localStorage
+          ? localStorage.getItem(`@adera/profile/${userId}`)
+          : await storage.getItem(`@adera/profile/${userId}`);
+          
+        if (cachedData) {
+          cachedProfile = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+          const cacheAge = Date.now() - (cachedProfile._timestamp || 0);
+          if (cacheAge < 5 * 60 * 1000) { // 5 minutes cache
+            console.log('[AuthProvider] Using cached profile');
+            // Verify user hasn't changed
+            if (stateRef.current.currentUserId === userId && !controller.signal.aborted) {
+              stateRef.current.profile = cachedProfile;
+              setUserProfile(cachedProfile);
+              setAuthState(AuthState.AUTHENTICATED);
+              if (stateRef.current.roleLoadTimeout) {
+                clearTimeout(stateRef.current.roleLoadTimeout);
+                stateRef.current.roleLoadTimeout = null;
+              }
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('[AuthProvider] Error reading profile cache:', e);
+      }
+
+      // Check if aborted before making network request
+      if (controller.signal.aborted || stateRef.current.currentUserId !== userId) {
+        return;
+      }
+
+      // Try to get profile from users table
+      const { data: legacyProfile, error: legacyError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      // Check again if aborted or user changed
+      if (controller.signal.aborted || stateRef.current.currentUserId !== userId) {
+        return;
+      }
+
+      if (legacyError && legacyError.code !== 'PGRST116') {
+        console.error('[AuthProvider] Error fetching user profile from users:', legacyError);
+      }
+
+      let profile;
+      if (legacyProfile) {
+        console.log('[AuthProvider] Found legacy profile with role:', legacyProfile.role);
+        
+        profile = {
+          id: legacyProfile.id,
+          email: legacyProfile.email,
+          full_name: `${legacyProfile.first_name || ''} ${legacyProfile.last_name || ''}`.trim(),
+          phone: legacyProfile.phone,
+          role: legacyProfile.role || 'customer',
+          language: legacyProfile.language || 'en',
+          avatar_url: legacyProfile.avatar_url,
+          email_confirmed: legacyProfile.is_verified,
+          phone_confirmed: false,
+          _timestamp: Date.now()
+        };
+
+        // Cache the profile
+        try {
+          const storage = typeof window !== 'undefined' && window.localStorage 
+            ? window.localStorage 
+            : require('@react-native-async-storage/async-storage').default;
+          
+          const profileStr = JSON.stringify(profile);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(`@adera/profile/${userId}`, profileStr);
+          } else {
+            await storage.setItem(`@adera/profile/${userId}`, profileStr);
+          }
+        } catch (e) {
+          console.warn('[AuthProvider] Error caching profile:', e);
+        }
+
+      } else {
+        // If no profile found and within retry limit, wait and retry
+        if (retryCount < 2) {
+          const delay = (retryCount + 1) * 2000;
+          console.log(`[AuthProvider] Profile not found, retrying in ${delay}ms...`);
+          
+          stateRef.current.profileFetchTimeout = setTimeout(() => {
+            if (!controller.signal.aborted && stateRef.current.currentUserId === userId) {
+              fetchUserProfile(userId, retryCount + 1);
+            }
+          }, delay);
+          return;
+        }
+
+        // Last resort: create minimal profile
+        const currentUserEmail = stateRef.current.user?.email || '';
+        console.warn('[AuthProvider] Creating minimal profile with default customer role');
+        profile = {
+          id: userId,
+          role: 'customer',
+          email: currentUserEmail,
+          language: 'en',
+          _timestamp: Date.now()
+        };
+
+        // Cache the minimal profile
+        try {
+          const storage = typeof window !== 'undefined' && window.localStorage 
+            ? window.localStorage 
+            : require('@react-native-async-storage/async-storage').default;
+          
+          const profileStr = JSON.stringify(profile);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(`@adera/profile/${userId}`, profileStr);
+          } else {
+            await storage.setItem(`@adera/profile/${userId}`, profileStr);
+          }
+        } catch (e) {
+          console.warn('[AuthProvider] Error caching minimal profile:', e);
+        }
+      }
+
+      // Final check before setting state
+      if (!controller.signal.aborted && stateRef.current.currentUserId === userId) {
+        console.log('[AuthProvider] Setting user profile with role:', profile.role);
+        stateRef.current.profile = profile;
+        setUserProfile(profile);
+        setAuthState(AuthState.AUTHENTICATED);
+        
+        // Clear timeout
+        if (stateRef.current.roleLoadTimeout) {
+          clearTimeout(stateRef.current.roleLoadTimeout);
+          stateRef.current.roleLoadTimeout = null;
+        }
+      }
+
+    } catch (error) {
+      // Ignore abort errors
+      if (error.name === 'AbortError' || controller.signal.aborted) {
+        console.log('[AuthProvider] Profile fetch aborted');
+        return;
+      }
+      
+      console.error('[AuthProvider] Error in fetchUserProfile:', error);
+      
+      // Check if user changed or aborted
+      if (stateRef.current.currentUserId !== userId || controller.signal.aborted) {
+        return;
+      }
+      
+      if (retryCount < 2) {
+        const delay = (retryCount + 1) * 3000;
+        console.log(`[AuthProvider] Network error, retrying in ${delay}ms...`);
+        
+        stateRef.current.profileFetchTimeout = setTimeout(() => {
+          if (!controller.signal.aborted && stateRef.current.currentUserId === userId) {
+            fetchUserProfile(userId, retryCount + 1);
+          }
+        }, delay);
+        return;
+      }
+      
+      // Fallback to minimal profile
+      const currentUserEmail = stateRef.current.user?.email || '';
+      console.warn('[AuthProvider] Falling back to minimal profile after retries');
+      const minimalProfile = {
+        id: userId,
+        role: 'customer',
+        email: currentUserEmail,
+        language: 'en',
+        _timestamp: Date.now()
+      };
+      
+      if (!controller.signal.aborted && stateRef.current.currentUserId === userId) {
+        stateRef.current.profile = minimalProfile;
+        setUserProfile(minimalProfile);
+        setAuthState(AuthState.AUTHENTICATED);
+        
+        // Cache the minimal profile
+        try {
+          const storage = typeof window !== 'undefined' && window.localStorage 
+            ? window.localStorage 
+            : require('@react-native-async-storage/async-storage').default;
+          
+          const profileStr = JSON.stringify(minimalProfile);
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(`@adera/profile/${userId}`, profileStr);
+          } else {
+            await storage.setItem(`@adera/profile/${userId}`, profileStr);
+          }
+        } catch (e) {
+          console.warn('[AuthProvider] Error caching fallback profile:', e);
+        }
+        
+        // Clear timeout
+        if (stateRef.current.roleLoadTimeout) {
+          clearTimeout(stateRef.current.roleLoadTimeout);
+          stateRef.current.roleLoadTimeout = null;
+        }
+      }
+      setProfileError(error);
+    } finally {
+      // Clean up controller if this was the active fetch
+      if (stateRef.current.profileFetchController === controller) {
+        stateRef.current.profileFetchController = null;
+      }
+    }
+  }, [cancelProfileFetch, invalidateProfileCache]);
+
   useEffect(() => {
     let isMounted = true;
-    
-    // Reset abort flag on mount
-    if (typeof window !== 'undefined') {
-      window._profileFetchAborted = false;
-    }
 
     const initializeAuth = async () => {
       try {
+        // Cancel any existing profile fetch
+        cancelProfileFetch();
+
         // First try to get cached profile if available
         let cachedProfile = null;
         if (typeof window !== 'undefined') {
@@ -114,6 +359,7 @@ const AuthProvider = ({ children }) => {
                   if (cacheAge < 5 * 60 * 1000) { // 5 minutes cache
                     console.log('[AuthProvider] Using cached profile during init');
                     if (isMounted) {
+                      stateRef.current.currentUserId = sessionData.user.id;
                       setUserProfile(cachedProfile);
                       setAuthState(AuthState.AUTHENTICATED);
                     }
@@ -135,19 +381,29 @@ const AuthProvider = ({ children }) => {
           
           if (session?.user) {
             console.log('[AuthProvider] Session found, fetching user profile for:', session.user.email);
+            stateRef.current.currentUserId = session.user.id;
+            stateRef.current.user = session.user;
+            
             if (!cachedProfile) {
               setAuthState(AuthState.AUTHENTICATED);
-              // Don't set default role here - let fetchUserProfile set it from database
+              // Set temporary profile with null role to trigger loading state
               setUserProfile({ id: session.user.id, role: null });
             }
+            
+            // Fetch fresh profile
             fetchUserProfile(session.user.id);
           } else {
+            stateRef.current.currentUserId = null;
+            stateRef.current.user = null;
             setAuthState(AuthState.UNAUTHENTICATED);
           }
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
-        if (isMounted) setAuthState(AuthState.UNAUTHENTICATED);
+        if (isMounted) {
+          stateRef.current.currentUserId = null;
+          setAuthState(AuthState.UNAUTHENTICATED);
+        }
       }
     };
 
@@ -161,30 +417,38 @@ const AuthProvider = ({ children }) => {
           return;
         }
         
-        // Prevent rapid state updates
-        if (typeof window !== 'undefined') {
-          if (window._lastAuthUpdate && Date.now() - window._lastAuthUpdate < 100) {
-            console.log('[AuthProvider] Debouncing rapid auth update');
-            return;
-          }
-          window._lastAuthUpdate = Date.now();
-        }
+        // Cancel any pending profile fetch when auth state changes
+        cancelProfileFetch();
         
         if (session?.user) {
+          const newUserId = session.user.id;
+          const previousUserId = stateRef.current.currentUserId;
+          
           console.log('[AuthProvider] ✅ User authenticated:', event, 'email:', session.user.email);
           
-          // Batch state updates
-          batchStateUpdate({
-            session: session,
-            user: session.user,
-            profile: { id: session.user.id, role: null },
-            authState: AuthState.AUTHENTICATED
-          });
+          // If switching users, invalidate old user's cache
+          if (previousUserId && previousUserId !== newUserId) {
+            console.log('[AuthProvider] User switched, invalidating previous user cache');
+            invalidateProfileCache(previousUserId);
+          }
           
-          // Handle side effects after state update
+          // Update current user ID
+          stateRef.current.currentUserId = newUserId;
+          
+          // Update state immediately
+          stateRef.current.user = session.user;
+          setSession(session);
+          setUser(session.user);
+          setAuthState(AuthState.AUTHENTICATED);
+          // Set temporary profile with null role to show loading state
+          setUserProfile({ id: newUserId, role: null });
+          
+          // Handle side effects
           await ensureUserProfileExists(session.user, session.user.user_metadata);
-          await touchLastLogin(session.user.id);
-          fetchUserProfile(session.user.id);
+          await touchLastLogin(newUserId);
+          
+          // Fetch fresh profile (will cancel any existing fetch)
+          fetchUserProfile(newUserId);
           
           if (event === 'SIGNED_IN') {
             addNotification(`Welcome back! You've signed in successfully.`, NOTIFICATION_TYPES.SUCCESS);
@@ -192,13 +456,19 @@ const AuthProvider = ({ children }) => {
         } else {
           console.log('[AuthProvider] 🚪 User signed out, event:', event);
           
-          // Batch state updates for sign out
-          batchStateUpdate({
-            session: null,
-            user: null,
-            profile: null,
-            authState: AuthState.UNAUTHENTICATED
-          });
+          // Invalidate cache for the user being signed out
+          if (stateRef.current.currentUserId) {
+            invalidateProfileCache(stateRef.current.currentUserId);
+          }
+          
+          // Clear state
+          stateRef.current.currentUserId = null;
+          stateRef.current.user = null;
+          stateRef.current.profile = null;
+          setSession(null);
+          setUser(null);
+          setUserProfile(null);
+          setAuthState(AuthState.UNAUTHENTICATED);
           
           console.log('[AuthProvider] Auth state set to UNAUTHENTICATED');
         }
@@ -207,9 +477,10 @@ const AuthProvider = ({ children }) => {
 
     return () => {
       isMounted = false;
+      cancelProfileFetch();
       subscription?.unsubscribe();
     };
-  }, []);
+  }, [cancelProfileFetch, fetchUserProfile]);
 
   // [PATCH] Periodically refresh session every 5 minutes on web
   useEffect(() => {
@@ -280,177 +551,10 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  const fetchUserProfile = async (userId, retryCount = 0) => {
-    // Clear any existing fetch timer
-    if (typeof window !== 'undefined' && window._authStateTimer) {
-      clearTimeout(window._authStateTimer);
-      window._authStateTimer = null;
-    }
-    
-    // Check if profile fetch has been aborted (during sign out)
-    if (typeof window !== 'undefined' && window._profileFetchAborted) {
-      console.log('[AuthProvider] Profile fetch aborted');
-      return;
-    }
-
-    try {
-      console.log('[AuthProvider] fetchUserProfile: Starting for userId:', userId, 'retry:', retryCount);
-      
-      // First try to get the profile from local storage cache
-      let cachedProfile = null;
-      try {
-        const cachedData = localStorage.getItem(`@adera/profile/${userId}`);
-        if (cachedData) {
-          cachedProfile = JSON.parse(cachedData);
-          const cacheAge = Date.now() - (cachedProfile._timestamp || 0);
-          if (cacheAge < 5 * 60 * 1000) { // 5 minutes cache
-            console.log('[AuthProvider] Using cached profile');
-            setUserProfile(cachedProfile);
-            setAuthState(AuthState.AUTHENTICATED);
-            return;
-          }
-        }
-      } catch (e) {
-        console.warn('[AuthProvider] Error reading profile cache:', e);
-      }
-
-      // Try to get profile from users table first (legacy system)
-      const { data: legacyProfile, error: legacyError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (legacyError && legacyError.code !== 'PGRST116') {
-        console.error('[AuthProvider] Error fetching user profile from users:', legacyError);
-      }
-
-      let profile;
-      if (legacyProfile) {
-        console.log('[AuthProvider] Found legacy profile with role:', legacyProfile.role);
-        
-        // Check if profile is meaningfully different before updating
-        const newProfile = {
-          id: legacyProfile.id,
-          email: legacyProfile.email,
-          full_name: `${legacyProfile.first_name || ''} ${legacyProfile.last_name || ''}`.trim(),
-          phone: legacyProfile.phone,
-          role: legacyProfile.role || 'customer',
-          language: legacyProfile.language || 'en',
-          avatar_url: legacyProfile.avatar_url,
-          email_confirmed: legacyProfile.is_verified,
-          phone_confirmed: false,
-          _timestamp: Date.now()
-        };
-        
-        // Compare with current profile
-        const currentProfile = stateRef.current.profile;
-        const hasChanged = !currentProfile ||
-          currentProfile.role !== newProfile.role ||
-          currentProfile.email !== newProfile.email ||
-          currentProfile.full_name !== newProfile.full_name ||
-          currentProfile.phone !== newProfile.phone ||
-          currentProfile.language !== newProfile.language ||
-          currentProfile.avatar_url !== newProfile.avatar_url ||
-          currentProfile.email_confirmed !== newProfile.email_confirmed;
-          
-        if (hasChanged) {
-          profile = newProfile;
-        } else {
-          console.log('[AuthProvider] Profile unchanged, skipping update');
-          return;
-        }
-
-        // Cache the profile
-        try {
-          localStorage.setItem(`@adera/profile/${userId}`, JSON.stringify(profile));
-        } catch (e) {
-          console.warn('[AuthProvider] Error caching profile:', e);
-        }
-
-      } else if (!profile) {
-        // If no profile found and within retry limit, wait and retry
-        if (retryCount < 2) {
-          const delay = (retryCount + 1) * 2000;
-          console.log(`[AuthProvider] Profile not found, retrying in ${delay}ms...`);
-          
-          return new Promise((resolve) => {
-            window._authStateTimer = setTimeout(() => {
-              if (!window._profileFetchAborted) {
-                resolve(fetchUserProfile(userId, retryCount + 1));
-              }
-            }, delay);
-          });
-        }
-
-        // Last resort: create minimal profile
-        console.warn('[AuthProvider] Creating minimal profile with default customer role');
-        profile = {
-          id: userId,
-          role: 'customer',
-          email: user?.email,
-          language: 'en',
-          _timestamp: Date.now()
-        };
-
-        // Cache the minimal profile
-        try {
-          localStorage.setItem(`@adera/profile/${userId}`, JSON.stringify(profile));
-        } catch (e) {
-          console.warn('[AuthProvider] Error caching minimal profile:', e);
-        }
-      }
-
-      // Check again for abort before setting state
-      if (!window._profileFetchAborted) {
-        console.log('[AuthProvider] Setting user profile with role:', profile.role);
-        setUserProfile(profile);
-        setAuthState(AuthState.AUTHENTICATED);
-      }
-
-    } catch (error) {
-      console.error('[AuthProvider] Error in fetchUserProfile:', error);
-      
-      if (retryCount < 2 && !window._profileFetchAborted) {
-        const delay = (retryCount + 1) * 3000;
-        console.log(`[AuthProvider] Network error, retrying in ${delay}ms...`);
-        
-        return new Promise((resolve) => {
-          window._authStateTimer = setTimeout(() => {
-            if (!window._profileFetchAborted) {
-              resolve(fetchUserProfile(userId, retryCount + 1));
-            }
-          }, delay);
-        });
-      }
-      
-      // Keep user authenticated with minimal profile
-      if (!window._profileFetchAborted) {
-        console.warn('[AuthProvider] Falling back to minimal profile after retries');
-        const minimalProfile = {
-          id: userId,
-          role: 'customer',
-          email: user?.email,
-          language: 'en',
-          _timestamp: Date.now()
-        };
-        
-        setUserProfile(minimalProfile);
-        setAuthState(AuthState.AUTHENTICATED);
-        
-        // Cache the minimal profile
-        try {
-          localStorage.setItem(`@adera/profile/${userId}`, JSON.stringify(minimalProfile));
-        } catch (e) {
-          console.warn('[AuthProvider] Error caching fallback profile:', e);
-        }
-      }
-      setProfileError(error);
-      setAuthState(AuthState.UNAUTHENTICATED);
-    }
-  };
-
   const signIn = async (email, password) => {
+    // Cancel any pending profile fetch
+    cancelProfileFetch();
+    
     // First, try to refresh any existing session to ensure we have latest auth state
     try {
       await supabase.auth.refreshSession();
@@ -488,10 +592,16 @@ const AuthProvider = ({ children }) => {
     if (data?.user) {
       console.log('Sign in successful, user:', data.user.email, 'confirmed:', !!data.user.email_confirmed_at);
       
+      // Update current user ID and user reference
+      stateRef.current.currentUserId = data.user.id;
+      stateRef.current.user = data.user;
+      
       // Pass metadata from the user object itself upon sign-in
       await ensureUserProfileExists(data.user, data.user.user_metadata);
       await touchLastLogin(data.user.id);
+      
       // Fetch profile to populate role for routing ASAP
+      // Note: onAuthStateChange will also trigger, but this ensures immediate fetch
       fetchUserProfile(data.user.id);
     }
     return data;
@@ -540,20 +650,19 @@ const AuthProvider = ({ children }) => {
     try {
       console.log('[AuthProvider] 🚪 signOut: Starting sign out process');
       
-      // 0. Abort any pending profile fetch
-      if (typeof window !== 'undefined') {
-        window._profileFetchAborted = true;
-        if (window._authStateTimer) {
-          clearTimeout(window._authStateTimer);
-          window._authStateTimer = null;
-        }
+      // 0. Cancel any pending profile fetch
+      cancelProfileFetch();
+      
+      // 1. Invalidate cache for current user
+      if (stateRef.current.currentUserId) {
+        invalidateProfileCache(stateRef.current.currentUserId);
       }
       
-      // 1. Clear Supabase auth state first
+      // 2. Clear Supabase auth state first
       console.log('[AuthProvider] Calling supabase.auth.signOut()');
       const { error: signOutError } = await supabase.auth.signOut();
       
-      // 2. Clear local auth state and storage
+      // 3. Clear local auth state and storage
       const { clearAuthState } = require('./clearAuthState');
       await clearAuthState();
       
@@ -562,7 +671,7 @@ const AuthProvider = ({ children }) => {
         throw signOutError;
       }
 
-      // 3. Clear app storage but preserve preferences
+      // 4. Clear app storage but preserve preferences
       try {
         console.log('[AuthProvider] Clearing app storage (preserving theme/language)');
         if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -616,25 +725,17 @@ const AuthProvider = ({ children }) => {
         console.warn('[AuthProvider] App storage clearing error:', storageError);
       }
 
-      // 3. Clear auth state
+      // 5. Clear auth state
+      stateRef.current.currentUserId = null;
+      stateRef.current.profile = null;
       setAuthState(AuthState.UNAUTHENTICATED);
       setSession(null);
       setUser(null);
       setUserProfile(null);
       setNotifications([]);
 
-      // 4. Platform specific cleanup
+      // 6. Platform specific cleanup
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        try {
-          // Clear any queued timers
-          const existingTimers = window._aderaTimers || [];
-          existingTimers.forEach(timer => {
-            if (timer) clearTimeout(timer);
-          });
-          window._aderaTimers = [];
-        } catch (timerError) {
-          console.warn('[AuthProvider] Timer cleanup error:', timerError);
-        }
         // Aggressive web onboarding redirect for web after signout;
         setTimeout(() => {
           window.location.replace('/');
@@ -650,6 +751,9 @@ const AuthProvider = ({ children }) => {
       console.error('[AuthProvider] ❌ Sign out exception:', error);
       
       // Ensure cleanup even on error
+      cancelProfileFetch();
+      stateRef.current.currentUserId = null;
+      stateRef.current.profile = null;
       setAuthState(AuthState.UNAUTHENTICATED);
       setSession(null);
       setUser(null);

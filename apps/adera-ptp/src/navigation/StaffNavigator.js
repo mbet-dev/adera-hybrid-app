@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Platform } from 'react-native';
 import { AppBottomNavigation } from '@adera/ui';
 
 // Import Staff screens
@@ -9,13 +10,28 @@ import Support from '../screens/staff/Support';
 import StaffProfile from '../screens/staff/StaffProfile';
 
 const StaffNavigator = () => {
-  const [index, setIndex] = useState(0);
-  const [routes] = useState([
+  const routes = [
     { key: 'dashboard', title: 'Dashboard', focusedIcon: 'home', unfocusedIcon: 'home-outline' },
     { key: 'parcels', title: 'Oversight', focusedIcon: 'eye', unfocusedIcon: 'eye-outline' },
     { key: 'support', title: 'Support', focusedIcon: 'help-circle', unfocusedIcon: 'help-circle-outline' },
     { key: 'profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
-  ]);
+  ];
+
+  // Initialize index based on URL hash in web environment (if present)
+  const getInitialIndex = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        const routeIndex = routes.findIndex(route => route.key === hash);
+        if (routeIndex >= 0) {
+          return routeIndex;
+        }
+      }
+    }
+    return 0;
+  };
+
+  const [index, setIndex] = useState(getInitialIndex);
 
   const renderScene = AppBottomNavigation.SceneMap({
     dashboard: StaffDashboard,
