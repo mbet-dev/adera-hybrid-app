@@ -123,16 +123,27 @@ const AuthProvider = ({ children }) => {
       // First try to get the profile from local storage cache
       let cachedProfile = null;
       try {
-        const storage = typeof window !== 'undefined' && window.localStorage 
-          ? window.localStorage 
-          : require('@react-native-async-storage/async-storage').default;
-        
-        const cachedData = typeof window !== 'undefined' && window.localStorage
-          ? localStorage.getItem(`@adera/profile/${userId}`)
-          : await storage.getItem(`@adera/profile/${userId}`);
+        if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+          // Web: Use localStorage synchronously
+          const cachedData = localStorage.getItem(`@adera/profile/${userId}`);
+          if (cachedData) {
+            cachedProfile = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+          }
+        } else {
+          // Native: Use AsyncStorage asynchronously
+          try {
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const cachedData = await AsyncStorage.getItem(`@adera/profile/${userId}`);
+            if (cachedData) {
+              cachedProfile = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+            }
+          } catch (asyncError) {
+            // Silently fail if AsyncStorage is not available
+            console.warn('[AuthProvider] AsyncStorage not available:', asyncError);
+          }
+        }
           
-        if (cachedData) {
-          cachedProfile = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+        if (cachedProfile) {
           const cacheAge = Date.now() - (cachedProfile._timestamp || 0);
           if (cacheAge < 5 * 60 * 1000) { // 5 minutes cache
             console.log('[AuthProvider] Using cached profile');
@@ -150,7 +161,8 @@ const AuthProvider = ({ children }) => {
           }
         }
       } catch (e) {
-        console.warn('[AuthProvider] Error reading profile cache:', e);
+        // Silently fail cache read - not critical
+        console.warn('[AuthProvider] Error reading profile cache:', e.message || e);
       }
 
       // Check if aborted before making network request
@@ -193,15 +205,16 @@ const AuthProvider = ({ children }) => {
 
         // Cache the profile
         try {
-          const storage = typeof window !== 'undefined' && window.localStorage 
-            ? window.localStorage 
-            : require('@react-native-async-storage/async-storage').default;
-          
           const profileStr = JSON.stringify(profile);
-          if (typeof window !== 'undefined' && window.localStorage) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
             localStorage.setItem(`@adera/profile/${userId}`, profileStr);
           } else {
-            await storage.setItem(`@adera/profile/${userId}`, profileStr);
+            try {
+              const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+              await AsyncStorage.setItem(`@adera/profile/${userId}`, profileStr);
+            } catch (asyncError) {
+              console.warn('[AuthProvider] Error caching profile (AsyncStorage):', asyncError);
+            }
           }
         } catch (e) {
           console.warn('[AuthProvider] Error caching profile:', e);
@@ -234,15 +247,16 @@ const AuthProvider = ({ children }) => {
 
         // Cache the minimal profile
         try {
-          const storage = typeof window !== 'undefined' && window.localStorage 
-            ? window.localStorage 
-            : require('@react-native-async-storage/async-storage').default;
-          
           const profileStr = JSON.stringify(profile);
-          if (typeof window !== 'undefined' && window.localStorage) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
             localStorage.setItem(`@adera/profile/${userId}`, profileStr);
           } else {
-            await storage.setItem(`@adera/profile/${userId}`, profileStr);
+            try {
+              const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+              await AsyncStorage.setItem(`@adera/profile/${userId}`, profileStr);
+            } catch (asyncError) {
+              console.warn('[AuthProvider] Error caching minimal profile (AsyncStorage):', asyncError);
+            }
           }
         } catch (e) {
           console.warn('[AuthProvider] Error caching minimal profile:', e);
@@ -307,15 +321,16 @@ const AuthProvider = ({ children }) => {
         
         // Cache the minimal profile
         try {
-          const storage = typeof window !== 'undefined' && window.localStorage 
-            ? window.localStorage 
-            : require('@react-native-async-storage/async-storage').default;
-          
           const profileStr = JSON.stringify(minimalProfile);
-          if (typeof window !== 'undefined' && window.localStorage) {
+          if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
             localStorage.setItem(`@adera/profile/${userId}`, profileStr);
           } else {
-            await storage.setItem(`@adera/profile/${userId}`, profileStr);
+            try {
+              const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+              await AsyncStorage.setItem(`@adera/profile/${userId}`, profileStr);
+            } catch (asyncError) {
+              console.warn('[AuthProvider] Error caching fallback profile (AsyncStorage):', asyncError);
+            }
           }
         } catch (e) {
           console.warn('[AuthProvider] Error caching fallback profile:', e);
@@ -344,36 +359,107 @@ const AuthProvider = ({ children }) => {
         // Cancel any existing profile fetch
         cancelProfileFetch();
 
-        // First try to get cached profile if available
+        // First try to get cached profile if available (non-blocking)
         let cachedProfile = null;
-        if (typeof window !== 'undefined') {
-          try {
+        try {
+          if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
             const sessionStr = localStorage.getItem('@supabase.auth.token');
             if (sessionStr) {
-              const sessionData = JSON.parse(sessionStr);
-              if (sessionData?.user?.id) {
-                const cachedProfileStr = localStorage.getItem(`@adera/profile/${sessionData.user.id}`);
-                if (cachedProfileStr) {
-                  cachedProfile = JSON.parse(cachedProfileStr);
-                  const cacheAge = Date.now() - (cachedProfile._timestamp || 0);
-                  if (cacheAge < 5 * 60 * 1000) { // 5 minutes cache
-                    console.log('[AuthProvider] Using cached profile during init');
-                    if (isMounted) {
-                      stateRef.current.currentUserId = sessionData.user.id;
-                      setUserProfile(cachedProfile);
-                      setAuthState(AuthState.AUTHENTICATED);
+              try {
+                const sessionData = JSON.parse(sessionStr);
+                if (sessionData?.user?.id) {
+                  const cachedProfileStr = localStorage.getItem(`@adera/profile/${sessionData.user.id}`);
+                  if (cachedProfileStr) {
+                    cachedProfile = JSON.parse(cachedProfileStr);
+                    const cacheAge = Date.now() - (cachedProfile._timestamp || 0);
+                    if (cacheAge < 5 * 60 * 1000) { // 5 minutes cache
+                      console.log('[AuthProvider] Using cached profile during init');
+                    } else {
+                      cachedProfile = null; // Cache expired
                     }
                   }
                 }
+              } catch (parseError) {
+                console.warn('[AuthProvider] Error parsing cached data:', parseError);
               }
             }
-          } catch (e) {
-            console.warn('[AuthProvider] Error reading cached profile:', e);
+          } else {
+            // Native: Try AsyncStorage (non-blocking, with timeout)
+            try {
+              const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+              const sessionStr = await Promise.race([
+                AsyncStorage.getItem('@supabase.auth.token'),
+                new Promise((resolve) => setTimeout(() => resolve(null), 1000))
+              ]);
+              
+              if (sessionStr) {
+                try {
+                  const sessionData = JSON.parse(sessionStr);
+                  if (sessionData?.user?.id) {
+                    const cachedProfileStr = await Promise.race([
+                      AsyncStorage.getItem(`@adera/profile/${sessionData.user.id}`),
+                      new Promise((resolve) => setTimeout(() => resolve(null), 1000))
+                    ]);
+                    
+                    if (cachedProfileStr) {
+                      cachedProfile = JSON.parse(cachedProfileStr);
+                      const cacheAge = Date.now() - (cachedProfile._timestamp || 0);
+                      if (cacheAge < 5 * 60 * 1000) {
+                        console.log('[AuthProvider] Using cached profile during init (native)');
+                      } else {
+                        cachedProfile = null;
+                      }
+                    }
+                  }
+                } catch (parseError) {
+                  console.warn('[AuthProvider] Error parsing cached data (native):', parseError);
+                }
+              }
+            } catch (asyncError) {
+              // Silently fail - not critical
+              console.warn('[AuthProvider] Error reading cache (native):', asyncError.message || asyncError);
+            }
           }
+        } catch (e) {
+          // Silently fail cache read - not critical
+          console.warn('[AuthProvider] Error reading cached profile:', e.message || e);
         }
 
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        // Set cached profile if available
+        if (cachedProfile && isMounted) {
+          stateRef.current.currentUserId = cachedProfile.id;
+          setUserProfile(cachedProfile);
+          setAuthState(AuthState.AUTHENTICATED);
+        }
+
+        // Get session with timeout protection
+        const sessionPromise = supabase.auth.getSession();
+        const sessionTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout after 5 seconds')), 5000)
+        );
+
+        let session, error;
+        try {
+          const result = await Promise.race([sessionPromise, sessionTimeout]);
+          session = result.data.session;
+          error = result.error;
+        } catch (timeoutError) {
+          console.warn('[AuthProvider] Session fetch timeout or error:', timeoutError);
+          // Continue without session - set to unauthenticated
+          if (isMounted) {
+            setAuthState(AuthState.UNAUTHENTICATED);
+          }
+          return;
+        }
+
+        if (error) {
+          console.warn('[AuthProvider] Session error (non-critical):', error);
+          // Don't throw - set to unauthenticated instead
+          if (isMounted) {
+            setAuthState(AuthState.UNAUTHENTICATED);
+          }
+          return;
+        }
         
         if (isMounted) {
           setSession(session);
@@ -384,17 +470,22 @@ const AuthProvider = ({ children }) => {
             stateRef.current.currentUserId = session.user.id;
             stateRef.current.user = session.user;
             
-            if (!cachedProfile) {
+            // If we have cached profile, use it immediately but still fetch fresh
+            if (cachedProfile && cachedProfile.id === session.user.id) {
+              // Already set above, just fetch fresh in background
+              fetchUserProfile(session.user.id);
+            } else {
+              // No cache or different user - set loading state and fetch
               setAuthState(AuthState.AUTHENTICATED);
-              // Set temporary profile with null role to trigger loading state
               setUserProfile({ id: session.user.id, role: null });
+              fetchUserProfile(session.user.id);
             }
-            
-            // Fetch fresh profile
-            fetchUserProfile(session.user.id);
           } else {
+            // No session - ensure clean state
             stateRef.current.currentUserId = null;
             stateRef.current.user = null;
+            stateRef.current.profile = null;
+            setUserProfile(null);
             setAuthState(AuthState.UNAUTHENTICATED);
           }
         }
@@ -482,15 +573,95 @@ const AuthProvider = ({ children }) => {
     };
   }, [cancelProfileFetch, fetchUserProfile]);
 
-  // [PATCH] Periodically refresh session every 5 minutes on web
+  // Enhanced session management with activity tracking and graceful handling
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      const refreshTimer = setInterval(() => {
-        supabase.auth.refreshSession();
-      }, 5 * 60 * 1000); // 5 min
-      return () => clearInterval(refreshTimer);
+    if (!session) return;
+
+    let refreshTimer = null;
+    let activityTimer = null;
+    let inactivityWarningTimer = null;
+    const INACTIVITY_WARNING_TIME = 25 * 60 * 1000; // 25 minutes
+    const SESSION_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes (more frequent)
+    const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes before warning
+
+    // Track user activity to extend session
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    let lastActivityTime = Date.now();
+
+    const updateActivity = () => {
+      lastActivityTime = Date.now();
+    };
+
+    // Add activity listeners (web only)
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      activityEvents.forEach((event) => {
+        window.addEventListener(event, updateActivity, { passive: true });
+      });
     }
-  }, []);
+
+    // Periodic session refresh - more frequent and with error handling
+    const scheduleRefresh = () => {
+      if (refreshTimer) clearInterval(refreshTimer);
+      
+      refreshTimer = setInterval(async () => {
+        try {
+          // Only refresh if user has been active recently
+          const timeSinceActivity = Date.now() - lastActivityTime;
+          if (timeSinceActivity > INACTIVITY_TIMEOUT) {
+            console.log('[AuthProvider] Session refresh skipped - user inactive');
+            return;
+          }
+
+          const { data, error } = await supabase.auth.refreshSession();
+          
+          if (error) {
+            console.warn('[AuthProvider] Session refresh error (non-critical):', error.message);
+            // Don't force logout on refresh errors - let Supabase auto-refresh handle it
+            // Only log errors but continue gracefully
+          } else if (data?.session) {
+            console.log('[AuthProvider] Session refreshed successfully');
+            setSession(data.session);
+            stateRef.current.session = data.session;
+          }
+        } catch (err) {
+          console.warn('[AuthProvider] Session refresh exception (non-critical):', err);
+          // Graceful degradation - continue without forcing logout
+        }
+      }, SESSION_REFRESH_INTERVAL);
+    };
+
+    // Schedule initial refresh
+    scheduleRefresh();
+
+    // Check for inactivity and show warning (optional - can be enhanced with UI)
+    const checkInactivity = () => {
+      if (inactivityWarningTimer) clearTimeout(inactivityWarningTimer);
+      
+      inactivityWarningTimer = setTimeout(() => {
+        const timeSinceActivity = Date.now() - lastActivityTime;
+        if (timeSinceActivity > INACTIVITY_WARNING_TIME && session) {
+          console.log('[AuthProvider] User inactive - session may expire soon');
+          // Optional: Show notification to user
+          // addNotification('Your session will expire soon due to inactivity', 'warning');
+        }
+      }, INACTIVITY_WARNING_TIME);
+    };
+
+    checkInactivity();
+
+    // Cleanup
+    return () => {
+      if (refreshTimer) clearInterval(refreshTimer);
+      if (activityTimer) clearInterval(activityTimer);
+      if (inactivityWarningTimer) clearTimeout(inactivityWarningTimer);
+      
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        activityEvents.forEach((event) => {
+          window.removeEventListener(event, updateActivity);
+        });
+      }
+    };
+  }, [session]);
 
   const ensureUserProfileExists = async (authUser, metadata = {}) => {
     try {
@@ -801,15 +972,50 @@ const AuthProvider = ({ children }) => {
     return { success: true };
   };
 
-  const refreshSession = async () => {
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error) {
-      console.error('Error refreshing session:', error);
-      return;
-    }
+  // Enhanced refreshSession with better error handling and retry logic
+  const refreshSession = async (retryCount = 0) => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; // 1 second
 
-    setSession(data.session);
-    setUser(data.session?.user ?? null);
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        // Only retry on network errors or temporary failures
+        const isRetryableError = 
+          error.message?.includes('network') ||
+          error.message?.includes('timeout') ||
+          error.status === 408 || // Request Timeout
+          error.status === 429 || // Too Many Requests
+          (error.status >= 500 && error.status < 600); // Server errors
+
+        if (isRetryableError && retryCount < MAX_RETRIES) {
+          console.log(`[AuthProvider] Retrying session refresh (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY * (retryCount + 1)));
+          return refreshSession(retryCount + 1);
+        }
+
+        // Non-retryable errors or max retries reached
+        console.warn('[AuthProvider] Session refresh failed (non-critical):', error.message);
+        
+        // Don't force logout - let Supabase handle session expiration naturally
+        // This allows for graceful degradation
+        return { error };
+      }
+
+      if (data?.session) {
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+        stateRef.current.session = data.session;
+        console.log('[AuthProvider] Session refreshed successfully');
+        return { success: true, session: data.session };
+      }
+
+      return { success: false, error: 'No session data returned' };
+    } catch (err) {
+      console.warn('[AuthProvider] Session refresh exception (non-critical):', err);
+      return { error: err };
+    }
   };
 
   const verifyOTP = async (phone, token) => {
