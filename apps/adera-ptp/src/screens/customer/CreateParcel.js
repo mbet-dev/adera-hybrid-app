@@ -64,18 +64,40 @@ const CreateParcel = ({ navigation }) => {
     { id: '3', name: 'Mexico Square Store', distance: 3.1, address: 'Mexico, Addis Ababa' },
   ];
 
-  useEffect(() => {
-    requestLocationPermission();
-  }, []);
+  // useEffect(() => {
+  //   requestLocationPermission();
+  // }, []);
 
-  useEffect(() => {
-    calculatePrice();
-  }, [packageSize, dropoffPartner, pickupPartner]);
+  // useEffect(() => {
+  //   calculatePrice();
+  // }, [packageSize, dropoffPartner, pickupPartner]);
 
-  const requestLocationPermission = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    setLocationPermission(status === 'granted');
-  };
+  // const requestLocationPermission = async () => {
+  //   const { status } = await Location.requestForegroundPermissionsAsync();
+  //   if (status !== 'granted') {
+  //     Alert.alert('Permission Required', 'Location permission is needed to provide accurate partner locations.', [
+  //       { text: 'OK', onPress: () => requestLocationPermission() }
+  //     ]);
+  //   }
+  //   setLocationPermission(status === 'granted');
+  // };
+
+  
+  useEffect(() => {
+  requestLocationPermission();
+}, []);
+
+const requestLocationPermission = async () => {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status !== 'granted') {
+    Alert.alert('Permission Required', 'Location permission is needed to provide accurate partner locations.', [
+      { text: 'OK', onPress: () => requestLocationPermission() }
+    ]);
+  }
+  setLocationPermission(status === 'granted');
+};
+
+
 
   const calculatePrice = () => {
     if (!packageSize || !dropoffPartner || !pickupPartner) {
