@@ -26,6 +26,7 @@
     "pnpm": ">=8.0.0"
   },
   "dependencies": {
-    "adera-ptp": "link:apps\\adera-ptp"
+    "adera-ptp": "link:apps\\adera-ptp",
+    "zustand": "4.5.2"
   }
 }
