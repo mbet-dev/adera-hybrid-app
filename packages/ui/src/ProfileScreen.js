@@ -27,23 +27,34 @@ const ProfileScreen = ({ user, menuItems, appVersion = 'v1.0.0' }) => {
         console.log('[ProfileScreen] handleSignOut: Starting sign out');
         const result = await signOut();
         console.log('[ProfileScreen] handleSignOut: Sign out result:', result);
-        if (!result?.success) {
+        
+        // signOut now returns { success: boolean, error?: string }
+        if (result && !result.success) {
+          const errorMessage = result.error || 'Failed to sign out. Please try again.';
           if (Platform.OS === 'web') {
-            window.alert('Failed to sign out. Please try again.');
+            window.alert(`Sign out failed: ${errorMessage}`);
           } else {
-            Alert.alert('Error', 'Failed to sign out. Please try again.');
+            Alert.alert('Sign Out Failed', errorMessage);
           }
+          return; // Don't redirect if sign out failed
         }
+        
+        // Sign out was successful (or result is undefined for backward compatibility)
         // On web, redirect to the root to re-trigger the onboarding flow
         if (Platform.OS === 'web') {
-          window.location.href = '/';
+          // Small delay to ensure state is cleared
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 100);
         }
+        // On native, the auth state change will handle navigation
       } catch (error) {
         console.error('[ProfileScreen] handleSignOut: Error during sign out:', error);
+        const errorMessage = error?.message || 'Failed to sign out. Please try again.';
         if (Platform.OS === 'web') {
-          window.alert('Failed to sign out. Please try again.');
+          window.alert(`Sign out error: ${errorMessage}`);
         } else {
-          Alert.alert('Error', 'Failed to sign out. Please try again.');
+          Alert.alert('Sign Out Error', errorMessage);
         }
       }
     };

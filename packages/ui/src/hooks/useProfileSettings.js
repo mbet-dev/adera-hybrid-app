@@ -92,13 +92,23 @@ export const useProfileSettings = (roleType = 'customer') => {
       }
       
       const result = await signOut();
-      if (!result.success && Platform.OS !== 'web') {
-        Alert.alert('Error', result.warning || 'Failed to sign out. Please try again.');
+      
+      // signOut now returns { success: boolean, error?: string }
+      if (result && !result.success) {
+        const errorMessage = result.error || 'Failed to sign out. Please try again.';
+        if (Platform.OS !== 'web') {
+          Alert.alert('Sign Out Failed', errorMessage);
+        }
+        return; // Don't proceed if sign out failed
       }
+      
+      // Sign out was successful (or result is undefined for backward compatibility)
+      // The auth state change will handle navigation
     } catch (error) {
       console.error('[ProfileScreen] handleSignOut: Error during sign out:', error);
+      const errorMessage = error?.message || 'Failed to sign out. Please try again.';
       if (Platform.OS !== 'web') {
-        Alert.alert('Error', 'Failed to sign out. Please try again.');
+        Alert.alert('Sign Out Error', errorMessage);
       }
     }
   };
