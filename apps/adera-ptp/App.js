@@ -19,7 +19,7 @@ function AppContent() {
   const [wasAuthenticated, setWasAuthenticated] = useState(false);
   const { isAuthenticated, isLoading, role } = useAuth();
 
-  console.log('[AppContent] Render:', { isAuthenticated, isLoading, role, wasAuthenticated });
+  console.log('[AppContent][STATE] Render:', { isAuthenticated, isLoading, role, wasAuthenticated });
 
   const handleOnboardingComplete = () => {
     setHasCompletedOnboarding(true);
@@ -33,24 +33,21 @@ function AppContent() {
   };
 
   useEffect(() => {
-    console.log('[AppContent] Auth state changed:', { isAuthenticated, isLoading, wasAuthenticated });
-    
+    console.log('[AppContent][STATE] Auth state changed:', { isAuthenticated, isLoading, wasAuthenticated });
     // Track when user becomes authenticated
     if (isAuthenticated && !wasAuthenticated) {
-      console.log('[AppContent] User authenticated, setting wasAuthenticated flag');
+      console.log('[AppContent][STATE] User authenticated, setting wasAuthenticated flag');
       setWasAuthenticated(true);
     }
-    
     // Only reset and reload if user was previously authenticated and is now signed out
     if (!isAuthenticated && !isLoading && wasAuthenticated) {
-      console.log('[AppContent] User signed out (was authenticated), resetting onboarding state');
+      console.log('[AppContent][STATE] User signed out (was authenticated), resetting onboarding state');
       setHasCompletedOnboarding(false);
       setShowAppSelector(false);
       setWasAuthenticated(false);
-      
       // On web, force a reload to clear any cached state ONLY after actual sign out
       if (typeof window !== 'undefined' && window.location) {
-        console.log('[AppContent] [WEB] Forcing page reload after sign out');
+        console.log('[AppContent][STATE][WEB] Forcing page reload after sign out');
         setTimeout(() => {
           window.location.reload();
         }, 500);
@@ -75,7 +72,7 @@ function AppContent() {
 
   // Show loading while auth is initializing
   if (isLoading) {
-    console.log('[AppContent] Showing loading screen');
+    console.log('[AppContent][STATE] Showing loading screen');
     return <LoadingScreen message="Initializing Adera..." />;
   }
 
@@ -83,22 +80,25 @@ function AppContent() {
   if (isAuthenticated) {
     if (role === null) {
       // Role not yet determined, keep showing loading to prevent flicker
-      console.log('[AppContent] Authenticated but role not yet determined, waiting...');
+      console.log('[AppContent][STATE] Authenticated but role not yet determined, waiting...');
       return <LoadingScreen message="Loading user profile..." />;
     }
-    console.log('[AppContent] Authenticated, rendering AppNavigator with role:', role);
+    console.log('[AppContent][STATE] Authenticated, rendering AppNavigator with role:', role);
     return <AppNavigator />;
   }
 
   if (!hasCompletedOnboarding) {
+    console.log('[AppContent][STATE] Showing onboarding screen');
     return <OnboardingScreen onComplete={handleOnboardingComplete} />;
   }
 
   if (showAppSelector) {
+    console.log('[AppContent][STATE] Showing app selector screen');
     return <AppSelectorScreen onAppSelect={handleAppSelect} />;
   }
 
   // Show authentication navigator
+  console.log('[AppContent][STATE] Showing AuthNavigator');
   return <AuthNavigator />;
 }
 

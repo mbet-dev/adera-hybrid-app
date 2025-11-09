@@ -13,45 +13,47 @@ const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
   const { isAuthenticated, isLoading, role } = useAuth();
-
-  console.log('[AppNavigator] Render:', { isAuthenticated, isLoading, role });
+  // Aggressive runtime logging for state
+  React.useEffect(() => {
+    console.log('[AppNavigator][STATE]', { isAuthenticated, isLoading, role });
+  }, [isAuthenticated, isLoading, role]);
 
   if (isLoading) {
-    console.log('[AppNavigator] Still loading...');
+    console.log('[AppNavigator][STATE] Still loading...');
     return <LoadingScreen message="Loading Adera..." />;
   }
 
   if (!isAuthenticated) {
-    console.log('[AppNavigator] Not authenticated, redirecting to onboarding');
+    console.log('[AppNavigator][STATE] Not authenticated, redirecting to onboarding');
     // This will be handled by App.js navigation logic
     return <LoadingScreen message="Redirecting..." />;
   }
 
   // Route based on user role
   const getNavigatorForRole = () => {
-    console.log('[AppNavigator] Routing for role:', role);
+    console.log('[AppNavigator][STATE] Routing for role:', role);
     switch (role) {
       case 'customer':
-        console.log('[AppNavigator] Rendering CustomerNavigator');
+        console.log('[AppNavigator][STATE] Rendering CustomerNavigator');
         return <CustomerNavigator />;
       case 'partner':
-        console.log('[AppNavigator] Rendering PartnerNavigator');
+        console.log('[AppNavigator][STATE] Rendering PartnerNavigator');
         return <PartnerNavigator />;
       case 'driver':
-        console.log('[AppNavigator] Rendering DriverNavigator');
+        console.log('[AppNavigator][STATE] Rendering DriverNavigator');
         return <DriverNavigator />;
       case 'staff':
       case 'admin':
-        console.log('[AppNavigator] Rendering StaffNavigator');
+        console.log('[AppNavigator][STATE] Rendering StaffNavigator');
         return <StaffNavigator />;
       default:
-        console.log('[AppNavigator] No role matched, using CustomerNavigator as fallback');
+        console.log('[AppNavigator][STATE] No role matched, using CustomerNavigator as fallback');
         return <CustomerNavigator />; // Default fallback
     }
   };
 
   const navigator = getNavigatorForRole();
-  console.log('[AppNavigator] Returning navigator:', navigator);
+  console.log('[AppNavigator][STATE] Returning navigator:', navigator);
   return navigator;
 };
 
