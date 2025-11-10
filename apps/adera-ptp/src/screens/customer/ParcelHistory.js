@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,23 @@ import {
   TouchableOpacity,
   RefreshControl,
   FlatList,
+  TextInput,
+  Modal,
+  Alert,
+  Share,
 } from 'react-native';
-import { SafeArea, Card, useTheme } from '@adera/ui';
+import { SafeArea, Card, useTheme, Button } from '@adera/ui';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const ParcelHistory = () => {
+const ParcelHistory = ({ navigation }) => {
   const theme = useTheme();
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('date'); // 'date', 'status', 'price'
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
   const [parcels, setParcels] = useState([
     {
       id: '1',
@@ -98,15 +107,70 @@ const ParcelHistory = () => {
     setRefreshing(false);
   };
 
-  const getFilteredParcels = () => {
-    if (filter === 'all') return parcels;
-    if (filter === 'active') {
-      return parcels.filter(
-        p => !['delivered', 'cancelled'].includes(p.status)
+  // Memoized filtered parcels array
+const filteredParcels = useMemo(() => {
+    let filtered = parcels;
+
+    // Apply status filter
+    if (filter !== 'all') {
+      if (filter === 'active') {
+        filtered = filtered.filter(
+          p => !['delivered', 'cancelled'].includes(p.status)
+        );
+      } else {
+        filtered = filtered.filter(p => p.status === filter);
+      }
+    }
+
+    // Apply search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        p =>
+          p.trackingId.toLowerCase().includes(query) ||
+          p.recipient.toLowerCase().includes(query) ||
+          p.statusLabel.toLowerCase().includes(query)
       );
     }
-    return parcels.filter(p => p.status === filter);
-  };
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'date':
+          return new Date(b.date) - new Date(a.date);
+        case 'price':
+          return b.price - a.price;
+        case 'status':
+          return a.statusLabel.localeCompare(b.statusLabel);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [parcels, filter, searchQuery, sortBy]);
+
+  const handleExport = useCallback(async () => {
+    try {
+      const csv = [
+        'Tracking ID,Recipient,Status,Date,Price (ETB)',
+        ...filteredParcels.map(p =>
+          `${p.trackingId},${p.recipient},${p.statusLabel},${p.date},${p.price}`
+        ),
+      ].join('\n');
+
+      await Share.share({
+        message: csv,
+        title: 'Parcel History Export',
+      });
+    } catch (error) {
+      Alert.alert('Export Failed', 'Unable to export parcel history');
+    }
+  }, [filteredParcels]);
+
+  const handleTrackParcel = useCallback((trackingId) => {
+    navigation?.navigate?.('track', { trackingId });
+  }, [navigation]);
 
   const renderFilterChips = () => (
     <ScrollView
@@ -159,45 +223,47 @@ const ParcelHistory = () => {
 
   const renderParcelCard = ({ item }) => (
     <Card style={styles.parcelCard}>
-      <View style={styles.parcelHeader}>
-        <View style={styles.parcelInfo}>
-          <View
-            style={[
-              styles.parcelIcon,
-              { backgroundColor: item.color + '20' },
-            ]}
-          >
-            <MaterialCommunityIcons
-              name={item.icon}
-              size={24}
-              color={item.color}
-            />
-          </View>
-          <View style={styles.parcelDetails}>
-            <Text
-              style={[styles.trackingId, { color: theme.colors.text.primary }]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => handleTrackParcel(item.trackingId)}
+      >
+        <View style={styles.parcelHeader}>
+          <View style={styles.parcelInfo}>
+            <View
+              style={[
+                styles.parcelIcon,
+                { backgroundColor: item.color + '20' },
+              ]}
             >
-              {item.trackingId}
-            </Text>
-            <Text
-              style={[styles.recipient, { color: theme.colors.text.secondary }]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              To: {item.recipient}
-            </Text>
+              <MaterialCommunityIcons
+                name={item.icon}
+                size={24}
+                color={item.color}
+              />
+            </View>
+            <View style={styles.parcelDetails}>
+              <Text
+                style={[styles.trackingId, { color: theme.colors.text.primary }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {item.trackingId}
+              </Text>
+              <Text
+                style={[styles.recipient, { color: theme.colors.text.secondary }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                To: {item.recipient}
+              </Text>
+            </View>
           </View>
-        </View>
-        <TouchableOpacity style={styles.cardAction}>
           <MaterialCommunityIcons
-            name="dots-vertical"
+            name="chevron-right"
             size={24}
             color={theme.colors.text.secondary}
           />
-        </TouchableOpacity>
-      </View>
+        </View>
       <View style={styles.parcelBody}>
         <View style={styles.parcelDetailRow}>
           <MaterialCommunityIcons
@@ -233,29 +299,37 @@ const ParcelHistory = () => {
         </View>
       </View>
       <View style={styles.parcelFooter}>
-        <View style={[styles.statusBadge, { backgroundColor: item.color + '20' }]}
-        >
-          <Text style={[styles.statusText, { color: item.color }]}
-            numberOfLines={1}
-          >
+        <View style={[styles.statusBadge, { backgroundColor: item.color + '20' }]}>
+          <Text style={[styles.statusText, { color: item.color }]} numberOfLines={1}>
             {item.statusLabel}
           </Text>
         </View>
-        {item.status !== 'delivered' && item.status !== 'cancelled' && (
-          <TouchableOpacity style={styles.trackButton}>
-            <MaterialCommunityIcons
-              name="map-marker-path"
-              size={18}
-              color={theme.colors.primary}
-            />
-            <Text style={[styles.trackButtonText, { color: theme.colors.primary }]}
-              numberOfLines={1}
+        <View style={styles.quickActions}>
+          {item.status !== 'delivered' && item.status !== 'cancelled' && (
+            <TouchableOpacity
+              style={[styles.quickActionButton, { backgroundColor: theme.colors.primaryContainer }]}
+              onPress={() => handleTrackParcel(item.trackingId)}
             >
-              Track
-            </Text>
+              <MaterialCommunityIcons
+                name="map-marker-path"
+                size={16}
+                color={theme.colors.primary}
+              />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.quickActionButton, { backgroundColor: theme.colors.secondaryContainer }]}
+            onPress={() => Share.share({ message: `Track: ${item.trackingId}` })}
+          >
+            <MaterialCommunityIcons
+              name="share-variant"
+              size={16}
+              color={theme.colors.secondary}
+            />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
+      </TouchableOpacity>
     </Card>
   );
 
@@ -328,7 +402,10 @@ const ParcelHistory = () => {
     );
   };
 
-  const filteredParcels = getFilteredParcels();
+  // Use memoized array directly
+// eslint-disable-next-line react-hooks/exhaustive-deps
+// Note: filteredParcels is already array, not function
+
 
   return (
     <SafeArea edges={['top']}>
@@ -338,13 +415,56 @@ const ParcelHistory = () => {
           <Text style={[styles.headerTitle, { color: theme.colors.text.primary }]}>
             Parcel History
           </Text>
-          <TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={[styles.headerButton, { backgroundColor: theme.colors.primaryContainer }]}
+              onPress={handleExport}
+            >
+              <MaterialCommunityIcons
+                name="download"
+                size={20}
+                color={theme.colors.primary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.headerButton, { backgroundColor: theme.colors.primaryContainer }]}
+              onPress={() => setShowFilterModal(true)}
+            >
+              <MaterialCommunityIcons
+                name="filter-variant"
+                size={20}
+                color={theme.colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <View style={[styles.searchInputWrapper, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outline }]}>
             <MaterialCommunityIcons
-              name="filter-variant"
-              size={24}
-              color={theme.colors.text.primary}
+              name="magnify"
+              size={20}
+              color={theme.colors.text.secondary}
+              style={styles.searchIcon}
             />
-          </TouchableOpacity>
+            <TextInput
+              style={[styles.searchInput, { color: theme.colors.text.primary }]}
+              placeholder="Search by tracking ID, recipient..."
+              placeholderTextColor={theme.colors.text.secondary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <MaterialCommunityIcons
+                  name="close-circle"
+                  size={20}
+                  color={theme.colors.text.secondary}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Stats */}
@@ -379,11 +499,44 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    padding: 0,
   },
   statsContainer: {
     paddingHorizontal: 20,
@@ -542,6 +695,18 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: 14,
     textAlign: 'center',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  quickActionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

@@ -19,8 +19,8 @@ export { default as colors } from './src/colors';
 export { default as typography } from './src/typography';
 
 // Export notification components from components subdirectory
-export * from './src/components/NotificationSnackbar';
-export * from './src/components/NotificationContainer';
+export { default as NotificationSnackbar } from './src/components/NotificationSnackbar';
+export { default as NotificationContainer } from './src/components/NotificationContainer';
 export { useProfileSettings } from './src/hooks/useProfileSettings';
 export { default as CustomFAB } from './src/components/CustomFAB';
 export { default as SignupSuccessModal } from './src/components/SignupSuccessModal';

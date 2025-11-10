@@ -8,18 +8,27 @@ import {
   TextInput as RNTextInput,
   Alert,
   ActivityIndicator,
+  RefreshControl,
+  Share,
+  Platform,
+  Animated,
+  Linking,
 } from 'react-native';
 import { SafeArea, Card, Button, useTheme } from '@adera/ui';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const TrackParcel = () => {
+const TrackParcel = ({ route, navigation }) => {
   const theme = useTheme();
-  const [trackingId, setTrackingId] = useState('');
+  const [trackingId, setTrackingId] = useState(route?.params?.trackingId || '');
   const [parcelData, setParcelData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [empty, setEmpty] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const abortRef = useRef(null);
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   const isValidTrackingId = useMemo(() => {
     // Example: ADE20250110-3 (ADE + date yyyymmdd + - + digits)
@@ -104,6 +113,32 @@ const TrackParcel = () => {
     fetchParcel(code);
   }, [trackingId, isValidTrackingId, fetchParcel]);
 
+  const handleRefresh = useCallback(async () => {
+    if (!parcelData) return;
+    setRefreshing(true);
+    await fetchParcel(parcelData.trackingId);
+    setRefreshing(false);
+  }, [parcelData, fetchParcel]);
+
+  const handleShare = useCallback(async () => {
+    if (!parcelData) return;
+    try {
+      const message = `Track my parcel: ${parcelData.trackingId}\nStatus: ${parcelData.statusLabel}\nRecipient: ${parcelData.recipient}\n\nTrack at: https://adera.et/track/${parcelData.trackingId}`;
+      await Share.share({
+        message,
+        title: 'Adera Parcel Tracking',
+      });
+    } catch (error) {
+      console.error('Share error:', error);
+    }
+  }, [parcelData]);
+
+  const handleCall = useCallback((phone) => {
+    if (Platform.OS !== 'web') {
+      Linking.openURL(`tel:${phone}`);
+    }
+  }, []);
+
   const handleClear = useCallback(() => {
     setTrackingId('');
     setParcelData(null);
@@ -111,8 +146,47 @@ const TrackParcel = () => {
     setEmpty(false);
   }, []);
 
-  // Debounce manual typing to avoid spamming calls; we still trigger only on button press by default.
-  // This is prepared in case you later enable auto-search.
+  // Auto-track if tracking ID provided via navigation
+  useEffect(() => {
+    if (route?.params?.trackingId && isValidTrackingId) {
+      fetchParcel(route.params.trackingId);
+    }
+  }, [route?.params?.trackingId]);
+
+  // Animate progress when parcel data changes
+  useEffect(() => {
+    if (parcelData?.timeline) {
+      const completedSteps = parcelData.timeline.filter(e => e.completed).length;
+      const totalSteps = parcelData.timeline.length;
+      const progress = completedSteps / totalSteps;
+      
+      Animated.timing(progressAnim, {
+        toValue: progress,
+        duration: 800,
+        useNativeDriver: false,
+      }).start();
+
+      // Pulse animation for active step
+      if (parcelData.timeline.some(e => e.active)) {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(pulseAnim, {
+              toValue: 1.2,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(pulseAnim, {
+              toValue: 1,
+              duration: 1000,
+              useNativeDriver: true,
+            }),
+          ])
+        ).start();
+      }
+    }
+  }, [parcelData]);
+
+  // Cleanup
   const debounceRef = useRef(null);
   useEffect(() => {
     return () => {
@@ -265,32 +339,86 @@ const TrackParcel = () => {
 
     if (!parcelData) return null;
 
+    const completedSteps = parcelData.timeline.filter(e => e.completed).length;
+    const totalSteps = parcelData.timeline.length;
+    const progressPercentage = Math.round((completedSteps / totalSteps) * 100);
+
     return (
       <View style={styles.detailsSection}>
+        {/* Progress Bar */}
+        <Card style={styles.progressCard}>
+          <View style={styles.progressHeader}>
+            <Text style={[styles.progressTitle, { color: theme.colors.text.primary }]}>
+              Delivery Progress
+            </Text>
+            <Text style={[styles.progressPercentage, { color: theme.colors.primary }]}>
+              {progressPercentage}%
+            </Text>
+          </View>
+          <View style={[styles.progressBarContainer, { backgroundColor: theme.colors.surfaceVariant }]}>
+            <Animated.View
+              style={[
+                styles.progressBarFill,
+                {
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ]}
+            >
+              <LinearGradient
+                colors={[theme.colors.primary, theme.colors.secondary]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.progressGradient}
+              />
+            </Animated.View>
+          </View>
+          <Text style={[styles.progressSubtext, { color: theme.colors.text.secondary }]}>
+            {completedSteps} of {totalSteps} steps completed
+          </Text>
+        </Card>
+
         {/* Status Card */}
         <Card style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <View style={styles.statusIconContainer}>
-              <MaterialCommunityIcons
-                name="package-variant-closed"
-                size={40}
-                color={getStatusColor(parcelData.currentStatus)}
-              />
-            </View>
-            <View style={styles.statusInfo}>
-              <Text style={[styles.statusLabel, { color: theme.colors.text.secondary }]}>
-                Current Status
-              </Text>
-              <Text
+          <LinearGradient
+            colors={[getStatusColor(parcelData.currentStatus) + '15', theme.colors.surface]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.statusGradient}
+          >
+            <View style={styles.statusHeader}>
+              <Animated.View
                 style={[
-                  styles.statusText,
-                  { color: getStatusColor(parcelData.currentStatus) },
+                  styles.statusIconContainer,
+                  {
+                    backgroundColor: getStatusColor(parcelData.currentStatus) + '20',
+                    transform: [{ scale: parcelData.timeline.some(e => e.active) ? pulseAnim : 1 }],
+                  },
                 ]}
               >
-                {parcelData.statusLabel}
-              </Text>
+                <MaterialCommunityIcons
+                  name="package-variant-closed"
+                  size={40}
+                  color={getStatusColor(parcelData.currentStatus)}
+                />
+              </Animated.View>
+              <View style={styles.statusInfo}>
+                <Text style={[styles.statusLabel, { color: theme.colors.text.secondary }]}>
+                  Current Status
+                </Text>
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: getStatusColor(parcelData.currentStatus) },
+                  ]}
+                >
+                  {parcelData.statusLabel}
+                </Text>
+              </View>
             </View>
-          </View>
+          </LinearGradient>
           <View style={[styles.statusDivider, { backgroundColor: theme.colors.outline }]} />
           <View style={styles.statusDetails}>
             <View style={styles.statusDetailRow}>
@@ -423,29 +551,42 @@ const TrackParcel = () => {
           </View>
         </Card>
 
-        {/* Actions */}
-        <View style={styles.actions}>
-          <Button
-            title="Contact Support"
-            onPress={() => {
-              Alert.alert('Contact Support', 'Support chat feature coming soon');
-            }}
-            variant="outline"
-            leftIcon="chat"
-            accessibilityLabel="Contact Support"
-            testID="contact-support"
-          />
-          <Button
-            title="Share Tracking"
-            onPress={() => {
-              Alert.alert('Share', 'Share tracking link feature coming soon');
-            }}
-            variant="outline"
-            leftIcon="share-variant"
-            accessibilityLabel="Share Tracking"
-            testID="share-tracking"
-          />
-        </View>
+        {/* Quick Actions */}
+        <Card style={styles.actionsCard}>
+          <Text style={[styles.actionsTitle, { color: theme.colors.text.primary }]}>
+            Quick Actions
+          </Text>
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: theme.colors.primaryContainer }]}
+              onPress={handleShare}
+            >
+              <MaterialCommunityIcons name="share-variant" size={24} color={theme.colors.primary} />
+              <Text style={[styles.actionButtonText, { color: theme.colors.primary }]}>Share</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: theme.colors.secondaryContainer }]}
+              onPress={() => handleCall('+251911234567')}
+            >
+              <MaterialCommunityIcons name="phone" size={24} color={theme.colors.secondary} />
+              <Text style={[styles.actionButtonText, { color: theme.colors.secondary }]}>Call</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: theme.colors.tertiaryContainer }]}
+              onPress={() => Alert.alert('Support', 'Chat support coming soon')}
+            >
+              <MaterialCommunityIcons name="chat" size={24} color={theme.colors.tertiary} />
+              <Text style={[styles.actionButtonText, { color: theme.colors.tertiary }]}>Chat</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: theme.colors.errorContainer || '#FFEBEE' }]}
+              onPress={() => Alert.alert('Report Issue', 'Issue reporting coming soon')}
+            >
+              <MaterialCommunityIcons name="alert-circle" size={24} color={theme.colors.error} />
+              <Text style={[styles.actionButtonText, { color: theme.colors.error }]}>Report</Text>
+            </TouchableOpacity>
+          </View>
+        </Card>
       </View>
     );
   };
@@ -456,6 +597,16 @@ const TrackParcel = () => {
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          parcelData ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[theme.colors.primary]}
+              tintColor={theme.colors.primary}
+            />
+          ) : undefined
+        }
       >
         {renderSearchSection()}
         {renderParcelDetails()}
@@ -633,6 +784,69 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: 12,
+  },
+  progressCard: {
+    padding: 20,
+    marginBottom: 16,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  progressPercentage: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  progressBarContainer: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: '100%',
+  },
+  progressGradient: {
+    flex: 1,
+  },
+  progressSubtext: {
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  statusGradient: {
+    borderRadius: 12,
+  },
+  actionsCard: {
+    padding: 20,
+    marginBottom: 16,
+  },
+  actionsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    minWidth: '45%',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

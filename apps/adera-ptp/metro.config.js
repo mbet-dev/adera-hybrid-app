@@ -22,4 +22,8 @@ config.resolver.disableHierarchicalLookup = true;
 // 4. Symlink support for pnpm
 config.resolver.unstable_enableSymlinks = true;
 
+// 5. Exclude react-native-maps from web builds
+// Metro automatically handles .native.js extensions, so NativeMapView.native.js
+// will only be included on native platforms
+
 module.exports = config;

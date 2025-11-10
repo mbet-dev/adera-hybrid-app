@@ -15,10 +15,11 @@ const NotificationSnackbar = ({ notification, onDismiss }) => {
       useNativeDriver: true,
     }).start();
 
-    // Auto-dismiss after duration
+    // Auto-dismiss after duration (default 5000ms if not provided)
+    const duration = notification.duration || 5000;
     const timer = setTimeout(() => {
       slideOut();
-    }, notification.duration);
+    }, duration);
 
     return () => {
       clearTimeout(timer);

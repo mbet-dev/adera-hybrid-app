@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import { supabase } from './supabase';
@@ -6,18 +8,44 @@ import { AuthState } from './types';
 
 const PROFILE_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
-// Expo SecureStore wrapper for zustand persistence
+// Platform-aware storage wrapper for zustand persistence
 const zustandStorage = {
+  /**
+   * setItem: Persist value in storage
+   * • Native (iOS/Android): use expo-secure-store
+   * • Web / Unsupported: fall back to AsyncStorage or localStorage
+   */
   setItem: async (name, value) => {
-    await SecureStore.setItemAsync(name, value);
+    if (Platform.OS === 'web' || typeof SecureStore.setItemAsync !== 'function') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(name, value);
+        return;
+      }
+      await AsyncStorage.setItem(name, value);
+    } else {
+      await SecureStore.setItemAsync(name, value);
+    }
   },
   getItem: async (name) => {
-    const value = await SecureStore.getItemAsync(name);
-    return value;
+    if (Platform.OS === 'web' || typeof SecureStore.getItemAsync !== 'function') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem(name);
+      }
+      return AsyncStorage.getItem(name);
+    }
+    return SecureStore.getItemAsync(name);
   },
   removeItem: async (name) => {
-    await SecureStore.deleteItemAsync(name);
-  },
+    if (Platform.OS === 'web' || typeof SecureStore.deleteItemAsync !== 'function') {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem(name);
+        return;
+      }
+      await AsyncStorage.removeItem(name);
+    } else {
+      await SecureStore.deleteItemAsync(name);
+    }
+  }
 };
 
 const NOTIFICATION_TYPES = {
