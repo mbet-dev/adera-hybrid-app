@@ -22,4 +22,9 @@ config.resolver.disableHierarchicalLookup = true;
 // 4. Symlink support for pnpm
 config.resolver.unstable_enableSymlinks = true;
 
+// Add support for platform-specific extensions
+config.resolver.sourceExts = process.env.RN_PLATFORM === 'web'
+  ? [...config.resolver.sourceExts, 'web.js', 'web.jsx', 'web.ts', 'web.tsx']
+  : [...config.resolver.sourceExts, 'native.js', 'native.jsx', 'native.ts', 'native.tsx'];
+
 module.exports = config;

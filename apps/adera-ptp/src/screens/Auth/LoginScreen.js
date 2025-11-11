@@ -364,8 +364,8 @@ const LoginScreen = ({ navigation }) => {
               validationSchema={validationSchema}
               onSubmit={(values) => handleLogin(values.email, values.password)}
             >
-              {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
-                <>
+                {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
+                  <View>
                   <TextInput
                     label="Email"
                     value={values.email}
@@ -410,7 +410,7 @@ const LoginScreen = ({ navigation }) => {
                     size="lg"
                     style={styles.signInButton}
                   />
-                </>
+                  </View>
               )}
             </Formik>
 

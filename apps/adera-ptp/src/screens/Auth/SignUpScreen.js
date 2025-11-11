@@ -172,7 +172,7 @@ const SignUpScreen = ({ navigation }) => {
               onSubmit={handleSignUp}
             >
               {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
-                <>
+                <View>
                   {/* Role Selection */}
                   <View style={styles.roleSection}>
                     <Text style={[styles.sectionLabel, { color: theme.colors.text.primary }]}>
@@ -356,7 +356,7 @@ const SignUpScreen = ({ navigation }) => {
                     size="lg"
                     style={styles.signUpButton}
                   />
-                </>
+                </View>
               )}
             </Formik>
           </View>

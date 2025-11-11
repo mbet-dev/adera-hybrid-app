@@ -302,7 +302,7 @@ const GuestNavigator = ({ onBackToAuth }) => {
 
         {/* Partners List */}
         {!loading && !error && partners.length > 0 && (
-          <>
+          <View>
             <View style={styles.resultsHeader}>
               <Text style={[styles.resultsCount, { color: theme.colors.onSurface }]}>
                 {partners.length} {partners.length === 1 ? 'partner' : 'partners'} found
@@ -395,7 +395,7 @@ const GuestNavigator = ({ onBackToAuth }) => {
               </View>
             </Card>
           ))}
-          </>
+          </View>
         )}
 
         {/* Auth Prompt */}

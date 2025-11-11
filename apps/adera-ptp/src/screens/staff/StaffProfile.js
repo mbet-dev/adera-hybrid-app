@@ -8,11 +8,11 @@ import { useProfileSettings } from '@adera/ui/src/hooks/useProfileSettings';
 const StaffProfile = () => {
   const { user, menuItems, appVersion, ThemeSelectModal, LanguageSelectModal } = useProfileSettings('staff');
   return (
-    <>
+    <View>
       <ThemeSelectModal />
       <LanguageSelectModal />
       <ProfileScreen user={user} menuItems={menuItems} appVersion={appVersion} />
-    </>
+    </View>
   );
 };
 

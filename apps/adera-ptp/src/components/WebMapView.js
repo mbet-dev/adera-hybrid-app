@@ -1,141 +1,104 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 
-const WebMapView = ({ partner, userLocation }) => {
-  const getMapUrlWithUserLocation = () => {
-    if (!partner || !partner.location) return null;
-    const lat = Number(partner.location.latitude || 0);
-    const lon = Number(partner.location.longitude || 0);
-    if (!lat || !lon) return null;
-    if (!userLocation || !userLocation.latitude || !userLocation.longitude) {
-      return `https://www.openstreetmap.org/export/embed.html?bbox=${lon - 0.01},${lat - 0.01},${lon + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lon}`;
+const WebMapView = ({ children, style, initialRegion, showsUserLocation }) => {
+  const [selectedMarker, setSelectedMarker] = useState(null);
+
+  const markers = React.Children.toArray(children).map((child) => child.props);
+
+  const getMapUrl = () => {
+    let centerLat, centerLon, zoom;
+
+    if (initialRegion) {
+      centerLat = initialRegion.latitude;
+      centerLon = initialRegion.longitude;
+      const zoomLat = Math.log2(360 / initialRegion.latitudeDelta);
+      const zoomLon = Math.log2(360 / initialRegion.longitudeDelta);
+      zoom = Math.min(zoomLat, zoomLon);
+    } else if (markers.length > 0) {
+      const latitudes = markers.map((m) => m.coordinate.latitude);
+      const longitudes = markers.map((m) => m.coordinate.longitude);
+      centerLat = (Math.min(...latitudes) + Math.max(...latitudes)) / 2;
+      centerLon = (Math.min(...longitudes) + Math.max(...longitudes)) / 2;
+      zoom = 10;
+    } else {
+      centerLat = 9.0054; // Default to Addis Ababa
+      centerLon = 38.7636;
+      zoom = 10;
     }
-    const uLat = Number(userLocation.latitude);
-    const uLon = Number(userLocation.longitude);
-    const minLon = Math.min(lon, uLon) - 0.01;
-    const minLat = Math.min(lat, uLat) - 0.01;
-    const maxLon = Math.max(lon, uLon) + 0.01;
-    const maxLat = Math.max(lat, uLat) + 0.01;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon},${minLat},${maxLon},${maxLat}&layer=mapnik&marker=${lat},${lon}`;
+
+    const markerParams = markers
+      .map(
+        (marker) =>
+          `${marker.coordinate.longitude},${marker.coordinate.latitude},blue-pushpin`
+      )
+      .join('~');
+
+    return `https://www.bing.com/maps/embed?h=400&w=800&cp=${centerLat}~${centerLon}&lvl=${zoom}&typ=d&sty=r&src=SHELL&FORM=MBEDV8&pins=${markerParams}`;
   };
 
-  const openInGoogleMaps = () => {
-    try {
-      const lat = Number(partner.location.latitude || 0);
-      const lon = Number(partner.location.longitude || 0);
-      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
-      if (typeof window !== 'undefined') window.open(url, '_blank');
-      else Linking.openURL(url);
-    } catch (e) {
-      // ignore
-    }
+  const handleMarkerClick = (marker) => {
+    setSelectedMarker(marker);
   };
-
-  const mapUrl = getMapUrlWithUserLocation();
-
-  if (!mapUrl) {
-    return (
-      <View style={styles.mapUnavailableContainer}>
-        <Text style={styles.mapUnavailableText}>Map unavailable</Text>
-      </View>
-    );
-  }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <iframe
-        src={mapUrl}
-        title={`Map for ${partner.name}`}
+        src={getMapUrl()}
+        title="Map"
         width="100%"
         height="100%"
         frameBorder="0"
         style={{ border: 'none' }}
       />
-      <View style={styles.overlay}>
-        <View style={styles.partnerLabel}>
-          <Text style={styles.partnerLabelText}>{partner.name}</Text>
+      {markers.map((marker, index) => (
+        <div
+          key={index}
+          style={{
+            position: 'absolute',
+            left: '50%', // Approximate position
+            top: '50%', // Approximate position
+            transform: 'translate(-50%, -100%)',
+            cursor: 'pointer',
+          }}
+          onClick={() => handleMarkerClick(marker)}
+        >
+          {/* This is a simplified representation. A real implementation would need to calculate pixel positions from lat/lon */}
+          <div style={{ fontSize: 24 }}>📍</div>
+        </div>
+      ))}
+      {selectedMarker && (
+        <View style={styles.callout}>
+          <Text style={styles.calloutTitle}>{selectedMarker.title}</Text>
+          <Text>{selectedMarker.description}</Text>
         </View>
-        {userLocation && userLocation.latitude && userLocation.longitude && (
-          <View style={styles.userLabel}>
-            <Text style={styles.userLabelText}>You</Text>
-          </View>
-        )}
-        <View style={styles.gmapsButtonContainer}>
-          <TouchableOpacity onPress={openInGoogleMaps} style={styles.gmapsButton}>
-            <Text style={styles.gmapsButtonText}>Open in Google Maps</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      )}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    position: 'relative',
     width: '100%',
-    height: 260,
-    borderRadius: 12,
+    height: '100%',
     overflow: 'hidden',
   },
-  overlay: {
+  callout: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    pointerEvents: 'none',
-  },
-  partnerLabel: {
-    position: 'absolute',
-    left: '60%',
-    top: '18%',
-    backgroundColor: '#fff',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: 'white',
+    padding: 10,
     borderRadius: 8,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
-  partnerLabelText: {
-    fontWeight: '700',
-  },
-  userLabel: {
-    position: 'absolute',
-    left: '45%',
-    top: '70%',
-    backgroundColor: '#FF3B30',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  userLabelText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  gmapsButtonContainer: {
-    position: 'absolute',
-    right: 12,
-    bottom: 12,
-    pointerEvents: 'auto',
-  },
-  gmapsButton: {
-    backgroundColor: '#4CAF50',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  gmapsButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  mapUnavailableContainer: {
-    width: '100%',
-    height: 260,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f6f6f6',
-  },
-  mapUnavailableText: {
-    color: '#666',
+  calloutTitle: {
+    fontWeight: 'bold',
   },
 });
 
