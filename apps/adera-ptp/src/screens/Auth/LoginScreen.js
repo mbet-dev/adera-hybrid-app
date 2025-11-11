@@ -31,6 +31,7 @@ const LoginScreen = ({ navigation }) => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [showResendLink, setShowResendLink] = useState(false);
   const [showRefreshLink, setShowRefreshLink] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -75,13 +76,61 @@ const LoginScreen = ({ navigation }) => {
     checkBiometric();
   }, [biometricEnabled]);
 
-  // Check for verification success from route params
+  // Check for verification success or error messages from route params (callback screen)
   useEffect(() => {
     const params = route.params;
+    
     if (params?.showSuccessMessage && params?.emailVerified) {
+      const message = params?.message || 'Email verified successfully! You can now sign in.';
+      setSuccessMessage(message);
       setShowVerificationSuccess(true);
-      // Clear params to prevent showing again on re-render
-      navigation.setParams({ showSuccessMessage: false, emailVerified: false });
+      
+      // Show alert for better visibility
+      Alert.alert(
+        '✅ Email Verified',
+        message,
+        [{ text: 'OK', onPress: () => {
+          setShowVerificationSuccess(false);
+          // Clear params to prevent showing again
+          navigation.setParams({ 
+            showSuccessMessage: false, 
+            emailVerified: false, 
+            message: undefined 
+          });
+        }}]
+      );
+    } else if (params?.showPasswordResetMessage) {
+      const message = params?.message || 'Password reset email sent! Please check your inbox.';
+      setSuccessMessage(message);
+      
+      Alert.alert(
+        '✅ Password Reset',
+        message,
+        [{ text: 'OK', onPress: () => {
+          // Clear params
+          navigation.setParams({ 
+            showPasswordResetMessage: false, 
+            message: undefined 
+          });
+          setSuccessMessage('');
+        }}]
+      );
+    } else if (params?.showError) {
+      const message = params?.message || 'An error occurred. Please try again.';
+      setErrorMessage(message);
+      
+      Alert.alert(
+        '⚠️ Error',
+        message,
+        [{ text: 'OK', onPress: () => {
+          // Clear params
+          navigation.setParams({ 
+            showError: false, 
+            message: undefined 
+          });
+          setErrorMessage('');
+        }}]
+      );
     }
   }, [route.params, navigation]);
 
@@ -255,6 +304,20 @@ const LoginScreen = ({ navigation }) => {
 
           {/* Form */}
           <View style={styles.form}>
+            {/* Success message banner */}
+            {successMessage && (
+              <View style={[styles.successBanner, { backgroundColor: theme.colors.primaryContainer }]}>
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={20}
+                  color={theme.colors.primary}
+                />
+                <Text style={[styles.successBannerText, { color: theme.colors.primary }]}>
+                  {successMessage}
+                </Text>
+              </View>
+            )}
+
             {/* Existing error banner */}
             {errorMessage && (
               <View style={[styles.errorBanner, { backgroundColor: theme.colors.errorContainer }]}>
@@ -450,6 +513,19 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  successBannerText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
   },
   errorBanner: {
     flexDirection: 'row',
